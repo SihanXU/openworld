@@ -12,8 +12,10 @@ import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
 import { faceFrame, personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
 import { RUN_ROW } from '../assets/figure/sprite.ts'
-import { GroundAtlas, T, groundBeneath, groundTile, hash2, objectAt } from '../assets/ground.ts'
+import { themedFixture } from '../assets/themes.ts'
+import { GroundAtlas, T, groundBeneath, groundTile, hash2, lookCellsWithWhen, objectAt } from '../assets/ground.ts'
 import { SLATE, paintRelief } from '../assets/relief.ts'
+import { paintSnowTile } from '../assets/snow.ts'
 /** What a room's frame is drawn over: its walls (a door or a doorway through them is left open). */
 const ROOM_WALL = new Set(['wall', 'woodwall', 'void'])
 import { depthOf, footOf } from './depth.ts'
@@ -22,7 +24,7 @@ import { prefs } from '../ui/common.ts'
 
 /** How much higher a storey is drawn than the one below it (world-model.md §5.2): one tile, a wall's height. */
 const STOREY_LIFT = T
-import type { ActorDef, Catalog, SpriteDef } from '../assets/types.ts'
+import type { ActorDef, Catalog, FurniturePose, SpriteDef } from '../assets/types.ts'
 import { DIR_COL, actorFrames, assetUrl, composeCatalog, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
 import { BossAnimationClock, bossAnimationFrame } from './boss-animation.ts'
 import { SkillFx } from './skillfx.ts'
@@ -45,6 +47,7 @@ interface EView {
   overlayName?: string
   /** How far a posture sets the body down from where it stands (drawPose): seated, it sinks onto the seat. */
   poseDy?: number
+  furniturePose?: FurniturePose
   hp: Phaser.GameObjects.Graphics
   /** What shows over its head (the health bar, the quest mark, a sign of what it is): drawn over the world, following the body. */
   head: Phaser.GameObjects.Container
@@ -162,6 +165,7 @@ export class WorldScene extends Phaser.Scene {
   hooks!: SceneHooks
   private atlas!: GroundAtlas
   private groundKey = 'ground'
+  private snowSurface?: { texture: Phaser.Textures.CanvasTexture; tile: ImageData }
   private tilemap?: Phaser.Tilemaps.Tilemap
   private layer?: Phaser.Tilemaps.TilemapLayer
   private base?: MapData
@@ -187,6 +191,7 @@ export class WorldScene extends Phaser.Scene {
   /** The terrain objects faded because they stand over the player (fadeOver). */
   private faded = new Set<Phaser.GameObjects.Image>()
   private views = new Map<string, EView>()
+  private furnitureAt = new Map<string, FurniturePose>()
   private tileFx = new Map<string, { sprites: Phaser.GameObjects.GameObject[]; sig: string }>()
   private creationFlightViews = new Map<string, () => void>()
   /** A stocked pond's water cells (MapData.fish), the fish shadows gliding in it now, and when the next one shows. */
@@ -403,6 +408,8 @@ export class WorldScene extends Phaser.Scene {
     for (const o of this.faded) this.tweens.killTweensOf(o)
     for (const o of this.statics) o.destroy()
     this.statics = []
+    if (this.snowSurface) this.textures.remove(this.snowSurface.texture.key)
+    this.snowSurface = undefined
     this.buildings.clear()
     this.faded = new Set([...this.faded].filter((o) => o.active))
     this.roofs.clear()
@@ -415,6 +422,16 @@ export class WorldScene extends Phaser.Scene {
     this.covered.clear()
     this.overrides.clear()
     this.following = undefined
+    // a new map: no vista yet (the first frame finds the one the player stands in), and the camera back at the game's
+    // own scale — a vista's or a fight's zoom left behind, and its easing stopped if still under way (it would go on
+    // setting the zoom into this map: through a door taken while the square before a church eased back, the nave behind
+    // it stayed drawn back)
+    const cam = this.cameras.main
+    if (this.vista || this.bossCam || cam.zoomEffect.isRunning) {
+      this.vista = undefined
+      cam.zoomEffect.reset()
+      if (!this.free) cam.setZoom(this.fitZoom()).setFollowOffset(0, 0)
+    }
     this.bossCam = undefined
     this.focus?.destroy()
     this.focus = undefined
@@ -424,11 +441,6 @@ export class WorldScene extends Phaser.Scene {
     this.tilemap?.destroy()
     if (this.base && this.base.id !== map.id) this.cameFrom = this.base.id
     this.base = map
-    // a new map: no vista yet (the first frame finds the one the player stands in)
-    if (this.vista) {
-      this.vista = undefined
-      this.cameras.main.setZoom(this.fitZoom()).setFollowOffset(0, 0)
-    }
     this.fishWater = []
     if (map.fish) {
       const water = (x: number, y: number) => x >= 0 && y >= 0 && x < map.width && y < map.height && FISH_WATER.has(map.terrain[y * map.width + x])
@@ -443,11 +455,12 @@ export class WorldScene extends Phaser.Scene {
       this.fishWater = cells
     }
     // the ground layer reads the ground under buildings and fences as the ground round them (ground.ts groundBeneath)
-    this.groundAt = groundBeneath(catalog(), map.stamps, this.terrainAt)
+    this.groundAt = groundBeneath(catalog(), map.stamps, this.terrainAt, map.id)
+    const detailedSnow = catalog().snowSurfaceMaps?.includes(map.id) ?? false
     const data: number[][] = []
     for (let y = 0; y < map.height; y++) {
       const row: number[] = []
-      for (let x = 0; x < map.width; x++) row.push(groundTile(this.atlas, catalog(), this.groundAt, x, y, this.base?.light === 'dark'))
+      for (let x = 0; x < map.width; x++) row.push(groundTile(this.atlas, catalog(), this.groundAt, x, y, map.light === 'dark', detailedSnow))
       data.push(row)
     }
     this.refreshGround()
@@ -455,6 +468,17 @@ export class WorldScene extends Phaser.Scene {
     const ts = this.tilemap.addTilesetImage(this.groundKey, this.groundKey, T, T, 0, 0)!
     this.layer = this.tilemap.createLayer(0, ts, 0, 0) as Phaser.Tilemaps.TilemapLayer
     this.layer.setDepth(-100)
+    if (detailedSnow) {
+      const texture = this.textures.createCanvas('ground:snow-surface', map.width * T, map.height * T)
+      if (texture) {
+        this.snowSurface = { texture, tile: texture.getContext().createImageData(T, T) }
+        for (let y = 0; y < map.height; y++)
+          for (let x = 0; x < map.width; x++) this.paintSnowCell(x, y, data[y][x])
+        texture.refresh()
+        this.layer.setVisible(false)
+        this.statics.push(this.add.image(0, 0, texture.key).setOrigin(0, 0).setDepth(-100))
+      }
+    }
     // decals, terrain objects, prefab stamps, room frames
     for (let y = 0; y < map.height; y++)
       for (let x = 0; x < map.width; x++) {
@@ -478,6 +502,13 @@ export class WorldScene extends Phaser.Scene {
     // (the music hears of the map with its first frame, when the hour and the weather there are known too)
     this.ambienceAt = -Infinity
     this.hooks.onMap?.(map)
+  }
+
+  private paintSnowCell(x: number, y: number, index: number): void {
+    const surface = this.snowSurface
+    if (!surface) return
+    paintSnowTile(surface.tile.data, this.atlas.rgba(index), this.groundAt, this.terrainAt, x, y)
+    surface.texture.getContext().putImageData(surface.tile, x * T, y * T)
   }
 
   private refreshGround(): void {
@@ -507,9 +538,10 @@ export class WorldScene extends Phaser.Scene {
     this.objects.delete(k)
     const t = this.terrainAt(x, y)
     // its look (a pine in the snow, a wood's heart), its pick and its place off the grid (ground.ts objectAt)
-    const o = objectAt(catalog(), this.terrainAt, this.groundAt, x, y)
+    const o = objectAt(catalog(), this.terrainAt, this.groundAt, x, y, this.base?.id)
     if (!o) return
     const img = this.addSprite(`tobj:${o.key}`, o.def, x, y)
+    if (o.scale !== undefined) img.setScale(o.scale)
     img.setDepth((y + 1) * T - 1)
     if (t === 'drygrass') img.setTint(0xe8cf7a)
     if (o.dx || o.dy) img.setPosition(img.x + o.dx, img.y + o.dy)
@@ -525,10 +557,11 @@ export class WorldScene extends Phaser.Scene {
     // the map's file: what each piece is bound to (pieces.ts)
     const original = (cx: number, cy: number) => (cx >= 0 && cy >= 0 && cx < m.width && cy < m.height ? m.terrain[cy * m.width + cx] : '')
     const sv: StampView = { p, x, y, pieces: [] }
+    const sourceTile = p.pixelsPerTile ?? T
     for (const d of piecesOf(p, { x, y }, original, this.terrainFacts())) {
       const name = `prefab:${key}:${d.i},${d.j}`
-      if (!tex.has(name)) tex.add(name, 0, p.x + d.i * T, p.y + d.j * T, T, T)
-      const img = this.add.image(d.x * T, d.y * T, p.img, name).setOrigin(0, 0).setDepth(pieceDepth(p, { y }, d.j, false))
+      if (!tex.has(name)) tex.add(name, 0, p.x + d.i * sourceTile, p.y + d.j * sourceTile, sourceTile, sourceTile)
+      const img = this.add.image(d.x * T, d.y * T, p.img, name).setOrigin(0, 0).setDisplaySize(T, T).setDepth(pieceDepth(p, { y }, d.j, false))
       this.statics.push(img)
       // a building's piece: the building fades whole over the player behind it (fadeOver); a pool or a shadow is ground
       if (!p.ground) {
@@ -682,7 +715,11 @@ export class WorldScene extends Phaser.Scene {
     this.walls.clear()
     this.floors.clear()
     this.stairs.clear()
+    this.furnitureAt.clear()
+    const poses = catalog().furniturePoses
     for (const e of f.entities) {
+      const anchor = poses?.[e.id] ?? poses?.[e.sprite]
+      if (anchor && !e.loose) this.furnitureAt.set(`${e.x},${e.y},${e.z ?? 0},${anchor.pose}`, anchor)
       if (isWallish(e.type)) this.walls.add(`${e.x},${e.y},${e.z ?? 0}`)
       else if (e.type === 'structure/floor') this.floors.add(`${e.x},${e.y},${e.z ?? 0}`)
       else if (e.type === 'structure/stairs') this.stairs.add(`${e.x},${e.y},${e.z ?? 0}`)
@@ -1208,12 +1245,17 @@ export class WorldScene extends Phaser.Scene {
         for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) redo.add(`${x + dx},${y + dy}`)
         this.placeObject(x, y)
       }
+      // a look that reads other cells' terrains (a bridge mended plank by plank) is drawn again
+      for (const [x, y] of lookCellsWithWhen(catalog(), this.base?.id)) if (!dirty.has(`${x},${y}`)) this.placeObject(x, y)
       for (const k of redo) {
         const [x, y] = k.split(',').map(Number)
         if (x < 0 || y < 0 || x >= this.base!.width || y >= this.base!.height) continue
-        this.layer!.putTileAt(groundTile(this.atlas, catalog(), this.groundAt, x, y, this.base?.light === 'dark'), x, y)
+        const index = groundTile(this.atlas, catalog(), this.groundAt, x, y, this.base?.light === 'dark', !!this.snowSurface)
+        this.layer!.putTileAt(index, x, y)
+        this.paintSnowCell(x, y, index)
       }
       this.refreshGround()
+      this.snowSurface?.texture.refresh()
     }
     this.refreshPieces(f)
     for (const [k, list] of statusNow) {
@@ -1314,7 +1356,22 @@ export class WorldScene extends Phaser.Scene {
     return def ? { key: `cre:${key}`, def } : undefined
   }
 
+  /** The picture drawn for this thing where it stands now, by its id (the catalogue's `placedSprites`), if it has one. */
+  private placedFor(e: EntitySnap) {
+    const placed = catalog().placedSprites?.[e.id]
+    return placed && placed.map === this.base?.id && placed.x === e.x && placed.y === e.y && !e.z ? placed : undefined
+  }
+
   private textureFor(e: EntitySnap): { img: string; frame: string; ax: number; ay: number; scale?: number; actor?: EView['actor'] } {
+    const placed = this.placedFor(e)
+    if (placed) {
+      const state = e.open && placed.open ? 'open' : e.hasContents && placed.filled ? 'filled' : undefined
+      // (a look while it bears a status: the winch with its line spliced or snapped)
+      const status = Object.keys(placed.statuses ?? {}).find((s) => e.statuses.includes(s))
+      const d = (status && placed.statuses![status]) || (state && placed[state]) || placed.sprite
+      const [frame] = spriteFrames(this, 'placed:' + e.id + (status ? ':s:' + status : state ? ':' + state : ''), d)
+      return { img: d.img, frame, ax: d.ax, ay: d.ay, scale: placed.scale }
+    }
     // a body (docs/npc-sandbox.md §2.8): the one it was, as they looked, lying where they fell
     if (e.tags.includes('body') && e.look && typeof e.look === 'object') {
       const a = figureDef(this, e.look)
@@ -1334,14 +1391,23 @@ export class WorldScene extends Phaser.Scene {
     // a thing set in its cell (a built wall, a laid floor) is drawn as part of the place; a fixture
     // one can carry (a bed) is drawn as itself once set down, not as its icon in the bag
     if (!e.tags.includes('agent') && (!e.tags.includes('portable') || e.spaces || e.type.startsWith('fixture/'))) {
+      // the look the map's theme gives it (a farmhouse's plain bed, a lord's seat's rich one)
+      const themed = themedFixture(catalog(), e.sprite, this.base?.id, e.statuses.includes('lit'), e.facing)
+      if (themed) {
+        const [frame] = spriteFrames(this, themed.key, themed.def)
+        return { img: themed.def.img, frame, ax: themed.def.ax, ay: themed.def.ay, scale: themed.scale }
+      }
       const f = this.fixtureDef(e)
       if (f) {
         // a look of its own among the type's variants, kept for its life
         const v = f.variants?.length ? hashStr(e.id) % f.variants.length : -1
         // a thing that turns, turned east or west, shows its picture across (a fence running north-south)
-        const across = (e.facing === 'left' || e.facing === 'right') && f.across
-        const d = ((e.statuses.includes('lit') || e.statuses.includes('attuned')) && f.lit) || (e.open && f.open) || across || (v >= 0 ? f.variants![v] : f.base)
-        const [frame] = spriteFrames(this, `fix:${e.sprite}:${d === f.lit ? 'lit' : d === f.open ? 'open' : d === across ? 'across' : v >= 0 ? `v${v}` : 'base'}`, d)
+        const across = ((e.facing === 'left' || e.facing === 'right') && f.across) || (e.facing === 'up' && f.back)
+        // lit: the variant's own lit picture, else the type's; open: with its things in, or empty
+        const lit = (e.statuses.includes('lit') || e.statuses.includes('attuned')) && ((v >= 0 && f.litVariants?.[v]) || f.lit)
+        const open = e.open && ((!e.hasContents && f.emptied) || f.open)
+        const d = lit || open || across || (v >= 0 ? f.variants![v] : f.base)
+        const [frame] = spriteFrames(this, `fix:${e.sprite}:${d === lit ? (d === f.lit ? 'lit' : `lit${v}`) : d === open ? (d === f.emptied ? 'emptied' : 'open') : d === across ? (d === f.back ? 'back' : 'across') : v >= 0 ? `v${v}` : 'base'}`, d)
         return { img: d.img, frame, ax: d.ax, ay: d.ay, scale: f.scale }
       }
     }
@@ -1558,6 +1624,10 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** The draw order of a thing (depth.ts); `foot` is where it stands now (a walker between two cells). */
+  /** One sat on a seat seen from behind is drawn behind it: under a thing in its cell, not over it (both orders, the frame's and the walk's). */
+  private behindSeat(v: EView): number {
+    return v.furniturePose?.behind ? 3 : 0
+  }
   private depthOf(e: EntitySnap, foot?: number): number {
     return depthOf(e, { ground: this.fixtureDef(e)?.ground, roof: this.roofs.get(`${e.x},${e.y}`), foot })
   }
@@ -1716,14 +1786,14 @@ export class WorldScene extends Phaser.Scene {
       v.body.setTexture(t.img, t.frame)
       v.body.setScale(t.actor?.scale ?? t.scale ?? 1)
     }
-    v.root.setDepth(this.depthOf(e))
+    v.root.setDepth(this.depthOf(e) - this.behindSeat(v))
     // what stands on a storey above the player over the room they are in is not drawn (one sees into
     // it); elsewhere, what hides them is see-through (findSeeThrough)
     const me = this.playerAt
     v.root.setVisible(!(!!me && (e.z ?? 0) > me.z && (this.ceilingOverlay || this.underRoof.has(`${e.x},${e.y}`))))
     // status overlay + tint
     // (a thing with a lit picture of its own, a brazier, shows that, not a flame over it)
-    const top = OVERLAY_FX.find(([o]) => e.overlays?.includes(o) && !(o === 'flame' && catalog().fixtures[e.sprite]?.lit))
+    const top = OVERLAY_FX.find(([o]) => e.overlays?.includes(o) && !(o === 'flame' && (catalog().fixtures[e.sprite]?.lit || themedFixture(catalog(), e.sprite, this.base?.id, true)?.key.endsWith(':lit') || this.placedFor(e)?.statuses?.lit)))
     const want = top?.[1]
     if (want !== v.overlayName) {
       v.overlay?.destroy()
@@ -1828,13 +1898,22 @@ export class WorldScene extends Phaser.Scene {
    */
   private drawPose(v: EView, pose: string | undefined): void {
     const b = v.body
-    b.setAngle(pose === 'lie' ? 90 : pose === 'lean' ? (v.snap.facing === 'left' ? -10 : v.snap.facing === 'right' ? 10 : 0) : 0)
-    // the frame's own rows, from its top: what is folded away is the bottom of it (the legs), and the rest sinks onto the seat
+    const { x, y, z, statuses } = v.snap
+    const unconscious = pose === 'lie' && (statuses.includes('down') || statuses.includes('out_cold'))
+    const anchor = v.actor && pose && !unconscious ? this.furnitureAt.get(`${x},${y},${z ?? 0},${pose}`) : undefined
+    if (anchor || v.furniturePose) {
+      b.setX(anchor?.x ?? 0)
+      b.setScale((v.actor?.scale ?? 1) * (anchor?.scale ?? 1))
+    }
+    v.furniturePose = anchor
+    v.shadow?.setVisible(!anchor)
+    b.setAngle(pose === 'lie' && !anchor ? 90 : pose === 'lean' ? (v.snap.facing === 'left' ? -10 : v.snap.facing === 'right' ? 10 : 0) : 0)
+    // Crop the standing frame where the blanket or seat takes over, then align that edge with the furniture.
     const h = b.frame.height
-    const fold = pose === 'sit' ? Math.round(h * 0.28) : pose === 'kneel' ? Math.round(h * 0.18) : 0
-    if (fold) b.setCrop(0, 0, b.frame.width, h - fold)
+    const visible = Math.round(h * (anchor?.reveal ?? (pose === 'sit' ? 0.72 : pose === 'kneel' ? 0.82 : 1)))
+    if (visible < h) b.setCrop(0, 0, b.frame.width, visible)
     else b.setCrop()
-    v.poseDy = fold ? Math.round(fold * 0.55 * b.scaleY) : 0
+    v.poseDy = anchor ? anchor.y - (visible - b.displayOriginY) * b.scaleY : Math.round((h - visible) * 0.55 * b.scaleY)
     b.setY(v.poseDy)
   }
 
@@ -1868,7 +1947,7 @@ export class WorldScene extends Phaser.Scene {
       // them fades (those behind hide no one)
       const body = [[0, 0], [0, -T], [-4, -T / 2], [4, -T / 2]].map(([ox, oy]) => [px + ox, py + oy])
       const over = (o: Phaser.GameObjects.Image, [x, y]: number[]) =>
-        o.visible && o.depth > mine && x >= o.x && x < o.x + T && y >= o.y && y < o.y + T && this.textures.getPixelAlpha(Math.floor(x - o.x), Math.floor(y - o.y), o.texture.key, o.frame.name) > 0
+        o.visible && o.depth > mine && x >= o.x && x < o.x + T && y >= o.y && y < o.y + T && this.drawnAt(o, x, y)
       for (const b of this.buildings.values()) {
         if (px < b.x0 - T || px > b.x1 + T || py < b.y0 - T || py > b.y1 + T) continue
         if (b.pieces.some((o) => body.some((q) => over(o, q)))) for (const o of b.pieces) if (o.visible && o.depth > mine) faded.add(o)
@@ -1880,7 +1959,9 @@ export class WorldScene extends Phaser.Scene {
     for (const v of this.views.values()) {
       const e = v.snap
       // (built walls and floors have their own see-through; stairs, a storey-high block drawn two tiles up, fade as a statue does)
-      const over = !!me && v !== me && !e.tags.includes('agent') && (!e.type.startsWith('structure/') || e.type === 'structure/stairs') && near(e.x, e.y) && v.body.displayHeight > T && v.root.depth > mine && v.body.getBounds().contains(px, py)
+      // (the seat the player sits behind hides them as it should: it does not fade)
+      const seat = !!me?.furniturePose?.behind && e.x === me.snap.x && e.y === me.snap.y
+      const over = !!me && v !== me && !seat && !e.tags.includes('agent') && (!e.type.startsWith('structure/') || e.type === 'structure/stairs') && near(e.x, e.y) && v.body.displayHeight > T && v.root.depth > mine && v.body.getBounds().contains(px, py)
       if (over !== !!v.over) (v.over = over), v.body.setAlpha(this.alphaOf(v))
     }
   }
@@ -1973,7 +2054,7 @@ export class WorldScene extends Phaser.Scene {
       if (v.walker) this.walk(v, time)
       v.head?.setPosition(v.root.x, v.root.y).setVisible(v.root.visible).setAlpha(v.root.alpha)
       // a body between two cells is ordered by where it is drawn now (depth.ts footOf)
-      if (e.tags.includes('agent') && !e.boss) v.root.setDepth(this.depthOf(e, footOf(e.y, v.root.y + (e.z ?? 0) * STOREY_LIFT + this.liftOf(e))))
+      if (e.tags.includes('agent') && !e.boss) v.root.setDepth(this.depthOf(e, footOf(e.y, v.root.y + (e.z ?? 0) * STOREY_LIFT + this.liftOf(e))) - this.behindSeat(v))
       // a boss drawn on its own atlas (rows of poses); one drawn otherwise (the dragon in parts) moves as any creature
       if (v.actor && e.boss && (v.actor.clips || v.actor.rows >= 5)) {
         let animated = e.boss
@@ -2000,8 +2081,8 @@ export class WorldScene extends Phaser.Scene {
         // single-row strips (bosses): animate across the columns
         v.body.setFrame(`${v.actor.key}:${Math.floor((time + v.phase) / 140) % v.actor.cols},0`)
       } else if (v.actor) {
-        const moving = time < v.movingUntil
-        const col = DIR_COL[e.facing] ?? 0
+        const moving = !v.furniturePose && time < v.movingUntil
+        const col = DIR_COL[v.furniturePose?.facing ?? e.facing] ?? 0
         const walkRows = Math.min(4, v.actor.rows)
         // working something out (an act the world is learning): busy hands in place, a little bob
         const working = e.frozen && !e.statuses.includes('down')
@@ -2386,8 +2467,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * The pools of coloured light on the floor (MapData.lights, docs/showcase.md §3.4): a window's shape, soft at its edges,
-   * crossed by the lead of its panes; laid on the floor over the ground and under all that stands, added to what is there.
+   * The authored lights (MapData.lights, docs/showcase.md §3.4) add a soft shape to the floor or around a mounted lamp.
    */
   private pools: { img: Phaser.GameObjects.Image; l: LightPool }[] = []
   private layPools(map: MapData): void {
@@ -2395,7 +2475,8 @@ export class WorldScene extends Phaser.Scene {
     for (const l of map.lights ?? []) {
       const key = `pool:${l.shape}`
       this.makePoolTexture(l.shape)
-      const img = this.add.image((l.x + 0.5) * T, (l.y + 0.5) * T, key).setBlendMode(Phaser.BlendModes.ADD).setDepth(-43)
+      const depth = l.aboveScenery ? 1e7 + 1 : -43
+      const img = this.add.image((l.x + 0.5) * T, (l.y + 0.5) * T, key).setBlendMode(Phaser.BlendModes.ADD).setDepth(depth)
       img.setDisplaySize(l.w * T, l.h * T).setTint(Number.parseInt(l.color.slice(1), 16)).setAlpha(0)
       this.statics.push(img)
       this.pools.push({ img, l })
@@ -2448,7 +2529,7 @@ export class WorldScene extends Phaser.Scene {
     for (const { img, l } of this.pools) {
       const s = l.strength ?? 0.5
       const a = l.when === 'sun' ? (up ? s * day * (1 - 0.35 * Math.abs(sun)) : 0) : l.when === 'night' ? s * (1 - day) : s
-      img.setAlpha(a)
+      img.setAlpha(l.aboveScenery && l.when === 'night' && up ? 0 : a)
       if (l.when === 'sun') {
         // the morning sun throws the window's light to the west, the evening's to the east, longer as it sinks
         img.setPosition((l.x + 0.5 - sun * l.h * 0.35) * T, (l.y + 0.5 + Math.abs(sun) * l.h * 0.15) * T)

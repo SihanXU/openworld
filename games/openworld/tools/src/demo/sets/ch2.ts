@@ -22,7 +22,7 @@ export const CH2_SPOTS: Record<string, Spot[]> = {
   // the Ashen Watch's cloak under the south cliffs, its gloves on the north-east rise
   lashmarks: [{ at: [5, 25], name: GREY }, { at: [50, 4], name: GREY }],
   // the Ashen Watch's jerkin, where the channels go into the wall
-  'scourgehouse.undercroft': [{ at: [21, 10], name: GREY }],
+  'scourgehouse.undercroft': [{ at: [4, 14], name: GREY }],
   // the Ashen Watch's belt beside the fog into the Pillar Yard (he did not go in); the Red Order's pauldrons and gauntlets on the old guard
   bastion: [{ at: [36, 17], name: GREY }, { at: [10, 8], name: RED }, { at: [35, 22], name: RED }],
   // the Red Order's hood, in a brother's chest
@@ -30,5 +30,5 @@ export const CH2_SPOTS: Record<string, Spot[]> = {
   // the Red Order's plate and cincture, at the foot of the post
   pillaryard: [{ at: [11, 6], name: RED }, { at: [14, 4], name: RED }],
   // the Red Order's greaves, in the vestry chest
-  'scourgehouse.hall': [{ at: [6, 22], kind: 'chest', name: L('The vestry chest', '法衣柜') }],
+  'scourgehouse.hall': [{ at: [3, 19], kind: 'chest', name: L('The vestry chest', '法衣柜') }],
 }

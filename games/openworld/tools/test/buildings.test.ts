@@ -7,6 +7,7 @@ import { Game, RuleLibrary, regionId, snapshot, type Key, type MapData } from '@
 import { BASE_RULES, FIRSTLIGHT, STORY_RULES, buildOntology, decodeChunk, type RawChunk } from '@openworld-game/content'
 import { pieceState, piecesOf, type TerrainFacts } from '@openworld/runtime/src/render/pieces.ts'
 import { CATALOG } from '../../client/src/catalog.ts'
+import BUILDINGS_JSON from '../../client/src/buildings.json'
 import { buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()
@@ -150,5 +151,15 @@ describe('the buildings on the maps (docs/building.md §10)', () => {
     expect(w.get('npc.rowan')!.npc!.memory?.deeds?.some((d) => d.deed === 'vandalism' && d.against === 'household:elder')).toBe(true)
     for (let i = 0; i < 300; i++) eng.tick()
     expect(asked).toEqual([])
+  })
+
+  it("Firstlight's chapel's walls with their pictures (tools/src/art/firstlight-chapel.py) are the walls as drawn, four times as large: run it again after the walls are", () => {
+    const drawn = (BUILDINGS_JSON as unknown as { buildings: Record<string, { slices: { row: number; col: number; tw: number; th: number; x: number; y: number; grid: string[] }[] }> }).buildings.flchurch_shell
+    const laid = CATALOG.prefabs
+    expect(drawn.slices.length).toBeGreaterThan(0)
+    for (const s of drawn.slices) {
+      const p = laid[`flchurch_shell@${s.row}`]
+      expect([s.row, p.pixelsPerTile, p.x, p.y, p.tw, p.th, p.grid]).toEqual([s.row, 64, s.x * 4, s.y * 4, s.tw, s.th, s.grid])
+    }
   })
 })

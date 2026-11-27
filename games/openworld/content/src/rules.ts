@@ -1745,6 +1745,13 @@ const JOURNEY: Rule[] = [
     tree: IF(all(param('what', 'status'), param('remove', 'lit')), DO(remove('lit')), IF(all(param('what', 'status'), param('add', 'lit')), DO(add('lit')), 'inherit')),
   }),
   rule({
+    id: 'slab/told',
+    doc: 'The stone over a stair the story opens (notify what = status, add open: a scene\'s `status`) answers itself and lies open: the Primate lifting the slab behind the high altar.',
+    host: { type: 'fixture/sacred/slab' },
+    on: 'impulse/notify',
+    tree: IF(all(param('what', 'status'), param('add', 'open')), DO(add('open')), 'inherit'),
+  }),
+  rule({
     id: 'companion/struck',
     doc: 'A companion struck by the one it follows takes the blow as any blow, and says so: it is no silent target. A blow from anyone else is a blow.',
     host: COMPANION,
@@ -2089,10 +2096,10 @@ const GENERAL: Rule[] = [
     on: 'impulse/handle',
     tree: DO(emit('settle', 'actor', { pose: 'lean' }), log('You rest beneath {host}.', '你在{host}下歇了歇脚。')),
   }),
-  ...(['chair', 'bench'] as const).map((family) => rule({
+  ...(['chair', 'bench', 'pew'] as const).map((family) => rule({
     id: 'furniture/sit-' + family,
     label: L('Sit on {target}', '坐在{target}上'),
-    doc: 'A hand on a seat asks the actor to sit at it; the native posture checks the source cell and ends when the actor moves.',
+    doc: 'A hand on a seat (a chair, a bench, a chapel\'s pew) asks the actor to sit at it; the native posture checks the source cell and ends when the actor moves.',
     host: { type: 'fixture/furniture/' + family },
     on: 'impulse/handle',
     tree: DO(emit('settle', 'actor', { pose: 'sit' })),

@@ -340,18 +340,34 @@ export function buildPoorhouse(): MapBuilder {
   return m
 }
 
-/** The Chapel of the Measure: a scale carved over the altar, the litany on the wall. */
+/**
+ * The Chapel of the Measure, as the user drew it (2026-11-25, tools/src/art/fairweight-chapel.py: their sheet and mock-up):
+ * the altar of the Measure on its platform against the north wall, the scale carved over it, a candelabrum either side;
+ * the runner down the nave between three pews either side; the almoner's room east through the arch, the sacks and the
+ * shelf against its wall, the table with the basket of bread, the last almoner's box in its corner (sets/ch3.ts).
+ */
 export function buildMeasureChapel(): MapBuilder {
-  const { m, P } = valeHall('prchapel', 'fairweight.chapel', 'Chapel of the Measure', '衡量礼拜堂', 'floor_stone', [], { music: 'temple' })
+  const { m, P } = valeHall('fwchapel', 'fairweight.chapel', 'Chapel of the Measure', '衡量礼拜堂', 'floor_stone', [], { music: 'temple' })
   const N = P.nave
-  m.fixture('fixture/sacred/altar', N.x + 5, N.y, {
+  const C = P.cell
+  const ax = N.x + 5
+  m.scenery('wschapel_runner', ax - 1, N.y + 1)
+  m.scenery('fwchapel_steps', N.x, N.y)
+  m.fixture('fixture/sacred/altar', ax, N.y, {
+    id: 'fairweight.altar',
     name: L('The altar of the Measure', '衡量祭坛'),
     tags: ['readable'],
     props: { text: 'An altar of pale stone. Carved over it, a man standing in one pan of a scale, the other pan heaped with sheaves. The man\'s pan is the higher. Under it: HIS FLESH AT LAST WAS LIGHTER THAN SIN. BLESSED ARE THE LIGHT.', text_zh: '一座浅色石头砌的祭坛。上方刻着一个人站在一杆秤的一只盘里，另一只盘里堆满了麦捆。人站的那只盘子更高。底下刻着：其肉身终轻于罪。轻者有福。' },
   })
   for (const x of [N.x + 2, N.x + 8]) m.fixture('fixture/light/candles', x, N.y, lit)
-  for (const y of [N.y + 3, N.y + 5, N.y + 7]) for (const x of [N.x + 1, N.x + 7]) m.fixture('fixture/furniture/bench', x, y)
-  glow(m, N.x + 5.5, N.y + 1.5, 8, 4, '#ffd27a', 0.35)
+  for (const y of [N.y + 3, N.y + 5, N.y + 7]) for (const x of [ax - 3, ax + 3]) m.fixture('fixture/furniture/pew', x, y)
+  // the almoner's room: the sacks and the shelf against its wall, the table with the basket of bread
+  m.fixture('fixture/container/sack', C.x + 1, C.y, { name: L('Sacks of grain, nearly empty', '几袋快见底的粮食') })
+  m.fixture('fixture/container/shelf', C.x + 3, C.y, { name: L("The almoner's shelf", '施赈人的架子') })
+  m.fixture('fixture/furniture/table/long', C.x + 2, C.y + 2, { name: L("The almoner's table", '施赈人的桌子') })
+  // (over the scene: the platform's own picture would hide a light on the floor)
+  m.lights.push({ x: ax, y: N.y - 0.2, w: 7, h: 5, color: '#ffd27a', shape: 'glow', when: 'always', strength: 0.4, aboveScenery: true })
+  for (const x of [N.x + 2, N.x + 8]) m.lights.push({ x, y: N.y - 1.6, w: 2.5, h: 2.5, color: '#ffc46b', shape: 'glow', when: 'always', strength: 0.45, aboveScenery: true })
   return m
 }
 

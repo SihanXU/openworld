@@ -36,7 +36,7 @@ export const CH5_SPOTS: Record<string, Spot[]> = {
   // the White-Robed's robe, girdle and foot-wrappings, among the heaped white-robed
   beneathaltar: [{ at: [6, 7], name: BENEATH }, { at: [22, 7], name: BENEATH }, { at: [5, 20], name: BENEATH }],
   // the Elect's stole, in a chest in the nave's corner
-  'whiteveil.church': [{ at: [5, 14], kind: 'chest', name: L('A chest in the church', '教堂里的箱子') }],
+  'whiteveil.church': [{ at: [4, 18], kind: 'chest', id: 'whiteveil.chest', name: L('A chest in the church', '教堂里的箱子') }],
   // the Elect's gloves (the hall, by Agathe's frame) and cincture (the abbot's room)
   'whiteveil.robing': [
     { at: [18, 17], kind: 'chest', name: L('A chest in the robing house', '白袍房的箱子') },

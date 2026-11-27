@@ -38,6 +38,10 @@ export interface ShellOpts {
   dress?: (f: Face) => Dress
   /** The stone of the cornice over the faces, their skirting and the ceiling's lit rim (default 'stone'). */
   trim?: string
+  /** How wide the ceiling's lit rim is where it meets the floor, in pixels (default 2; the Most Holy Hall's a broad ledge). */
+  rim?: number
+  /** Wall cells (not faces) whose tops are the wall's own stone, a low wall seen from above, not the ceiling's dark. */
+  ledge?: (x: number, y: number) => boolean
 }
 
 /** The shell's model: tall faces, the ceiling's strips, what the faces carry. */
@@ -91,12 +95,18 @@ export function shell(o: ShellOpts): Model {
       let near = false
       for (let dy = -1; dy <= 1 && !near; dy++) for (let dx = -1; dx <= 1 && !near; dx++) if (floor(x + dx, y + dy)) near = true
       if (!near) continue
+      if (o.ledge?.(x, y)) {
+        solids.push(box(x * S, y * S, 0, (x + 1) * S, (y + 1) * S, 6, o.wall))
+        fp[y][x] = '#'
+        continue
+      }
       solids.push(box(x * S, y * S, 0, (x + 1) * S, (y + 1) * S, 3, 'ceiling'))
       // the ceiling's lit rim where it meets the floor
-      if (floor(x, y + 1)) solids.push(box(x * S, (y + 1) * S - 2, 0, (x + 1) * S, (y + 1) * S, 4, trim))
-      if (floor(x, y - 1)) solids.push(box(x * S, y * S, 0, (x + 1) * S, y * S + 2, 4, trim))
-      if (floor(x - 1, y)) solids.push(box(x * S, y * S, 0, x * S + 2, (y + 1) * S, 4, trim))
-      if (floor(x + 1, y)) solids.push(box((x + 1) * S - 2, y * S, 0, (x + 1) * S, (y + 1) * S, 4, trim))
+      const r = o.rim ?? 2
+      if (floor(x, y + 1)) solids.push(box(x * S, (y + 1) * S - r, 0, (x + 1) * S, (y + 1) * S, 4, trim))
+      if (floor(x, y - 1)) solids.push(box(x * S, y * S, 0, (x + 1) * S, y * S + r, 4, trim))
+      if (floor(x - 1, y)) solids.push(box(x * S, y * S, 0, x * S + r, (y + 1) * S, 4, trim))
+      if (floor(x + 1, y)) solids.push(box((x + 1) * S - r, y * S, 0, (x + 1) * S, (y + 1) * S, 4, trim))
       fp[y][x] = '#'
     }
   return { name: o.name, footprint: fp.map((r) => r.join('')), solids, voids, ornaments: orn }

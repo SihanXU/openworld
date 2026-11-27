@@ -26,6 +26,14 @@ interface Style {
   /** The head face's feature. */
   feature: 'hearth' | 'canopy' | 'window' | 'books' | 'ossuary' | 'gate' | 'none'
   pilasters?: string
+  /** Where a face's pilasters stand, in cells along the plan (default: every third cell from its west end). */
+  pilastersAt?: (f: Face) => number[]
+  /** The string course's height, a share of the wall's (default 0.42). */
+  course?: number
+  /** A face's own height, if not the hall's (a low wall at the back of a cell beside a nave). */
+  heightAt?: (f: Face) => number | undefined
+  /** No sconces between the bays: the walls are hung with pictures of their own (Firstlight's chapel, firstlight-chapel.py). */
+  bare?: boolean
   /** Roofless: every wall broken off at a ragged height, ivy up it, moss in its courses, the rain's stains. */
   ruined?: boolean
 }
@@ -145,17 +153,20 @@ function dresser(st: Style, plan: HallPlan): (f: Face) => Dress {
     const x0 = f.x0 * S
     const x1 = (f.x1 + 1) * S
     const mid = (x0 + x1) / 2
-    const h = len <= 2 ? Math.round(st.h * 0.8) : st.h
+    const h = st.heightAt?.(f) ?? (len <= 2 ? Math.round(st.h * 0.8) : st.h)
     const solids: Solid[] = []
     const voids: Solid[] = []
     const orn: Ornament[] = []
     const seed = f.x0 * 31 + f.y * 7
     // the pilasters between the bays, a string course
-    if (st.pilasters && len > 3) for (let x = f.x0; x <= f.x1 + 1; x += 3) {
-      const px = Math.min(x, f.x1 + 1) * S
-      solids.push(box(px - 3, y - 2, 0, px + 3, y + 3, h - 4, st.pilasters))
+    if (st.pilasters && len > 3) {
+      const at: number[] = []
+      if (st.pilastersAt) at.push(...st.pilastersAt(f))
+      else for (let x = f.x0; x <= f.x1 + 1; x += 3) at.push(Math.min(x, f.x1 + 1))
+      for (const x of at) solids.push(box(x * S - 3, y - 2, 0, x * S + 3, y + 3, h - 4, st.pilasters))
     }
-    if (len > 2) solids.push(box(x0, y - 2, Math.round(h * 0.42), x1, y + 2, Math.round(h * 0.42) + 3, st.trim))
+    const course = Math.round(h * (st.course ?? 0.42))
+    if (len > 2) solids.push(box(x0, y - 2, course, x1, y + 2, course + 3, st.trim))
     const hangAt = (kind: Hang, cx: number, k: number) => {
       if (kind === 'tapestry') orn.push(tapestry(20, Math.round(h * 0.34), seed + k).at(cx - 10, y, 10))
       else if (kind === 'banner') orn.push(banner(10, Math.round(h * 0.3), k % 2 ? 'U' : 'E').at(cx - 5, y, Math.round(h * 0.2)))
@@ -235,7 +246,7 @@ function dresser(st: Style, plan: HallPlan): (f: Face) => Dress {
         } else orn.push(window(10, 14, true, hash(seed, c) < 0.3).at(cx - 7, y, wz))
       }
       hangAt(st.hang[(k + Math.floor(seed / 7)) % st.hang.length], cx, k)
-      if (k % 2 && cx + S < x1) orn.push(sconce().at(cx + S - 3, y, Math.round(h * 0.36)))
+      if (k % 2 && cx + S < x1 && !st.bare) orn.push(sconce().at(cx + S - 3, y, Math.round(h * 0.36)))
       k++
     }
     if (st.ruined) {
@@ -307,13 +318,39 @@ const STYLES: Record<keyof typeof HALLS, Style> = {
   flcabin: { wall: 'timber', trim: 'darkwood', h: 64, windows: 'rect', hang: ['jars', 'none'], feature: 'hearth' },
   flstore: { wall: 'plaster', trim: 'timber', h: 72, windows: 'rect', hang: ['shelves', 'jars', 'shelves'], feature: 'none', pilasters: 'timber' },
   flsmithy: { wall: 'stone', trim: 'darkwood', h: 80, windows: 'rect', hang: ['trophy', 'tools', 'none'], feature: 'hearth', pilasters: 'darkwood' },
-  flchurch: { wall: 'stone', trim: 'stone', h: 104, windows: 'lancet', glass: 'blue', hang: ['tapestry', 'banner', 'painting'], feature: 'window', pilasters: 'stone' },
+  // Firstlight's chapel: bare stone, pilasters either side of the bay at its head (the plan's middle, between two cells);
+  // its windows, banners and the carved five wounds are pictures of their own laid over it (firstlight-chapel.py)
+  flchurch: { wall: 'stone', trim: 'stone', h: 120, windows: 'none', hang: ['none'], feature: 'none', pilasters: 'stone', course: 0.5, bare: true, pilastersAt: (f) => [f.x0, (f.x0 + f.x1 + 1) / 2 - 2.5, (f.x0 + f.x1 + 1) / 2 + 2.5, f.x1 + 1] },
   fthut: { wall: 'darkwood', trim: 'timber', h: 64, windows: 'rect', hang: ['trophy', 'tools', 'none'], feature: 'none' },
   mbmill: { wall: 'timber', trim: 'darkwood', h: 80, windows: 'rect', hang: ['timbers', 'tools', 'shelves'], feature: 'none', pilasters: 'darkwood' },
   dlhut: { wall: 'darkwood', trim: 'darkwood', h: 64, windows: 'rect', hang: ['tools', 'none', 'jars'], feature: 'none' },
   rbcabin: { wall: 'timber', trim: 'darkwood', h: 64, windows: 'rect', hang: ['jars', 'painting', 'none'], feature: 'none', pilasters: 'darkwood' },
-  dhchapel: { wall: 'stone', trim: 'stone', h: 104, windows: 'lancet', glass: 'gold', hang: ['none', 'none', 'banner'], feature: 'window', pilasters: 'stone', ruined: true },
+  // (its walls all drawn again over these, tools/src/art/first-dawn-chapel.py: these only make the strips they are laid in)
+  dhchapel: { wall: 'stone', trim: 'stone', h: 104, windows: 'none', hang: ['none'], feature: 'none', bare: true },
   prchapel: { wall: 'stone', trim: 'stone', h: 104, windows: 'lancet', glass: 'red', hang: ['tapestry', 'banner', 'painting'], feature: 'window', pilasters: 'stone' },
+  // the Rest's chapel of the Five: bare stone, pilasters either side of the bay at its head; its windows, banners and the
+  // carved five wounds pictures of their own laid on it (tools/src/art/rest-chapel.py)
+  wschapel: { wall: 'stone', trim: 'stone', h: 120, windows: 'none', hang: ['none'], feature: 'none', pilasters: 'stone', course: 0.5, bare: true, pilastersAt: (f) => [f.x0, (f.x0 + f.x1 + 1) / 2 - 2.5, (f.x0 + f.x1 + 1) / 2 + 2.5, f.x1 + 1], heightAt: (f) => (f.x0 >= 14 ? 84 : undefined) },
+  // the Scourging House's Chapel of the Pillar: white stone as tall as the user's mock-up, pilasters of a darker stone
+  // every three cells but only at the apse's corners; its windows, banners and the retable of the Post pictures of their own laid on it
+  // (tools/src/art/scourge-chapel.py)
+  scchapel: { wall: 'whiteStone', trim: 'whiteStone', h: 136, windows: 'none', hang: ['none'], feature: 'none', pilasters: 'stone', course: 0.5, bare: true, pilastersAt: (f) => (f.x1 - f.x0 + 1 === 8 ? [f.x0, f.x1 + 1] : Array.from({ length: Math.floor((f.x1 + 1 - f.x0) / 3) + 1 }, (_, i) => Math.min(f.x0 + 3 * i, f.x1 + 1))) },
+  // the Scourging House's undercroft: dressed granite, pale pilasters every three cells, at the apse's corners and either side
+  // of its middle bay, no string course across its pictures (a plinth at its foot); its niches, torches and the Order's
+  // banner pictures of their own laid on it
+  // (tools/src/art/scourge-undercroft.py)
+  scundercroft: { wall: 'granite', trim: 'granite', h: 68, windows: 'none', hang: ['none'], feature: 'none', pilasters: 'whiteStone', course: 0, bare: true, pilastersAt: (f) => (f.x1 - f.x0 + 1 === 8 ? [f.x0, f.x0 + 2.35, f.x1 + 1 - 2.35, f.x1 + 1] : Array.from({ length: Math.floor((f.x1 + 1 - f.x0) / 3) + 1 }, (_, i) => Math.min(f.x0 + 3 * i, f.x1 + 1))) },
+  // Fairweight's Chapel of the Measure: pale stone as tall as the user's mock-up, pilasters at the nave's corners and a bay
+  // in from each, at the almoner's room's corners, a string course under the windows; its windows, banners, niches and the
+  // bread's tablet pictures of their own laid on it (tools/src/art/fairweight-chapel.py)
+  fwchapel: { wall: 'stone', trim: 'stone', h: 124, windows: 'none', hang: ['none'], feature: 'none', pilasters: 'stone', course: 0.56, bare: true, pilastersAt: (f) => (f.x1 - f.x0 + 1 >= 9 ? [f.x0, f.x0 + 3, f.x1 - 2, f.x1 + 1] : [f.x0, f.x1 + 1]) },
+  // the Church of Whiteveil: white stone as tall as the user's mock-up, white pilasters every three cells but only at the
+  // apse's corners, no string course across its drapes; its windows, drapes and banners pictures of their own laid on it
+  // (tools/src/art/whiteveil-church.py)
+  wvchurch: { wall: 'whiteStone', trim: 'whiteStone', h: 136, windows: 'none', hang: ['none'], feature: 'none', pilasters: 'whiteStone', course: 0, bare: true, pilastersAt: (f) => (f.x1 - f.x0 + 1 === 8 ? [f.x0, f.x1 + 1] : Array.from({ length: Math.floor((f.x1 + 1 - f.x0) / 3) + 1 }, (_, i) => Math.min(f.x0 + 3 * i, f.x1 + 1))) },
+  // Nailgate's Chapel of the Nail: dark boards as tall as the user's mock-up, its square windows the arch's, a rail
+  // under them, no hearth; its banners, lamps and shelves pictures of their own laid on it (tools/src/art/nailgate-chapel.py)
+  ngchapel: { wall: 'darkwood', trim: 'timber', h: 76, windows: 'rect', hang: ['none'], feature: 'none', course: 0.47, bare: true },
   prhostel: { wall: 'plaster', trim: 'timber', h: 72, windows: 'rect', hang: ['painting', 'jars', 'none'], feature: 'hearth', pilasters: 'timber' },
   abhall: { wall: 'granite', trim: 'darkwood', h: 96, windows: 'lancet', glass: 'blue', hang: ['banner', 'books', 'trophy'], feature: 'canopy', pilasters: 'granite' },
   abcrypt: { wall: 'graniteRough', trim: 'graniteRough', h: 72, windows: 'none', hang: ['niches', 'niches', 'none'], feature: 'none', pilasters: 'graniteRough' },

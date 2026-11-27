@@ -63,7 +63,7 @@ const INDOORS: Record<string, { style: string; floor: string; trades: Trade[] }>
   redmarch: {
     style: 'stone',
     floor: 'floor_stone',
-    trades: [trade('Tanner', '皮匠', 'fixture/furniture/rack', 'fixture/container/barrel'), trade('Herder', '牧人', 'fixture/container/sack'), trade('Fletcher', '箭匠', 'fixture/craft/workbench'), trade('Veteran', '老兵', 'fixture/furniture/rack', 'fixture/container/chest')],
+    trades: [trade('Tanner', '皮匠', 'fixture/furniture/rack', 'fixture/container/barrel'), trade('Herder', '牧人', 'fixture/container/sack'), trade('Fletcher', '箭匠', 'fixture/craft/workbench'), trade('Veteran', '老兵', 'fixture/furniture/rack/arms', 'fixture/container/chest')],
   },
   tithe: {
     style: 'plaster',
@@ -161,7 +161,7 @@ function furnish(m: MapBuilder, role: Role, kept?: Trade): void {
     case 'smithy':
       put(m, 'fixture/craft/forge', 2, 1)
       put(m, 'fixture/craft/anvil', 4, 2)
-      put(m, 'fixture/furniture/rack', W - 3, 1)
+      put(m, 'fixture/furniture/rack/arms', W - 3, 1)
       put(m, 'fixture/furniture/bed', W - 2, 3)
       put(m, 'fixture/container/barrel', 1, H - 2)
       put(m, 'fixture/container/crate', W - 2, H - 2)
@@ -207,8 +207,8 @@ function furnish(m: MapBuilder, role: Role, kept?: Trade): void {
       break
     case 'barracks':
       for (let x = 1; x < W - 2; x += 2) put(m, 'fixture/furniture/bed', x, 1)
-      put(m, 'fixture/furniture/rack', W - 2, 3)
-      put(m, 'fixture/furniture/rack', W - 2, 4)
+      put(m, 'fixture/furniture/rack/arms', W - 2, 3)
+      put(m, 'fixture/furniture/rack/arms', W - 2, 4)
       put(m, 'fixture/container/chest', 1, H - 3)
       table(m, cx - 2, 4)
       break
@@ -217,7 +217,7 @@ function furnish(m: MapBuilder, role: Role, kept?: Trade): void {
       put(m, 'fixture/container/bookshelf', 3, 1)
       put(m, 'fixture/light/candles', W - 2, 1, LIT)
       put(m, 'fixture/furniture/table', W - 3, 3)
-      put(m, 'fixture/furniture/chair', W - 3, 4)
+      put(m, 'fixture/furniture/chair', W - 4, 3)
       break
   }
 }

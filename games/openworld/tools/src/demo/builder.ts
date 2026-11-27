@@ -5,7 +5,7 @@
 // no picture without a thing, and no wall without one: what the map shows and what blocks are
 // terrain or entities (a big thing blocks its type's footprint, and only while it stands).
 
-import type { AiData, Entity, AppearDef, LightPool, MapData, Portal, PropValue, Text, Vista } from '@openworld/engine'
+import type { AiData, Entity, AppearDef, LightPool, MapData, Portal, PropValue, RegionLook, Text, Vista } from '@openworld/engine'
 import { readFileSync } from 'node:fs'
 import { CHAR_OF, FORM_BY_ID, TERRAIN_CHARS, buildOntology, makeItem, type RawChunk } from '@openworld-game/content'
 import { OntologyIndex, Rng, WAY_TAGS, baseCovers, dropLevels, splitLayers } from '@openworld/engine'
@@ -120,6 +120,8 @@ export class MapBuilder {
   vistas: Vista[] = []
   /** Coloured light on the floor (MapData.lights). */
   lights: LightPool[] = []
+  /** Its own look over its region's (MapData.look): a room lit otherwise than the land round it. */
+  look?: RegionLook
 
   constructor(
     public id: string,
@@ -677,9 +679,40 @@ export class MapBuilder {
     }
   }
 
+  /**
+   * A seat turns to the table (or desk) it is set at, its picture turned so: a chair at the table's west or east end,
+   * a bench along its north or south side. The pictures show a chair from the side or the front, never from behind, so
+   * a chair north or south of a table is an error to fix where it is set (a bench goes there); one turned by hand is
+   * the author's.
+   */
+  seatsToTables() {
+    const table = new Set<string>()
+    for (const e of this.entities)
+      if (e.place.on === 'tile' && /^fixture\/furniture\/(table|desk)/.test(e.type)) {
+        const [w, d] = ONTO.resolve(e.type).footprint
+        for (let x = e.place.x - Math.floor((w - 1) / 2); x <= e.place.x + Math.floor(w / 2); x++) for (let y = e.place.y - d + 1; y <= e.place.y; y++) table.add(`${x},${y}`)
+      }
+    const wrong: string[] = []
+    for (const e of this.entities) {
+      if (e.facing || e.place.on !== 'tile') continue
+      const { x, y } = e.place
+      const at = (dx: number, dy: number) => table.has(`${x + dx},${y + dy}`)
+      if (e.type.startsWith('fixture/furniture/chair')) {
+        if (at(1, 0)) e.facing = 'right'
+        else if (at(-1, 0)) e.facing = 'left'
+        else if (at(0, 1) || at(0, -1)) wrong.push(`${x},${y}`)
+      } else if (e.type === 'fixture/furniture/bench') {
+        if (at(0, 1)) e.facing = 'down'
+        else if (at(0, -1)) e.facing = 'up'
+      }
+    }
+    if (wrong.length) throw new Error(`${this.id}: a chair north or south of a table, at ${wrong.join(' ')} (set it at an end, or a bench there)`)
+  }
+
   chunk(): RawChunk {
     this.clearVolumes()
     this.joinFences()
+    this.seatsToTables()
     // the ground a roof hides is walked as any other, one goes behind the house and out of sight (the user's call,
     // 2026-10-27): walled while the map was made, so nothing was laid where no one would see it, given back now
     for (const [key, ground] of this.covered) {
@@ -719,6 +752,7 @@ export class MapBuilder {
         light: this.light,
         ...(this.vistas.length && { vistas: this.vistas }),
         ...(this.lights.length && { lights: this.lights }),
+        ...(this.look && { look: this.look }),
         fish: this.fish || undefined,
         zone: this.zone,
         site: this.site,

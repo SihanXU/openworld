@@ -15,7 +15,9 @@ import { OntologyIndex, type Dir, type Entity, type Look } from '@openworld/engi
 import { TERRAIN_CHARS } from '@openworld-game/content'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '@openworld/runtime/src/assets/types.ts'
 import { CATALOG } from './bundle.ts'
+import { themedFixture } from '@openworld/runtime/src/assets/themes.ts'
 import { T, groundBeneath, groundTile, hash2, objectAt, type GroundAtlas } from '@openworld/runtime/src/assets/ground.ts'
+import { paintSnowTile } from '@openworld/runtime/src/assets/snow.ts'
 import { SLATE, paintRelief } from '@openworld/runtime/src/assets/relief.ts'
 import { personLook } from '@openworld/runtime/src/assets/looks.ts'
 import type { ActorDef, SpriteDef } from '@openworld/runtime/src/assets/types.ts'
@@ -268,6 +270,7 @@ interface Snap {
   person: boolean
   element?: string
   open: boolean
+  hasContents: boolean
   held?: string
   boss?: { kit: string; footprint: [number, number]; action: 'idle' }
 }
@@ -317,6 +320,7 @@ function snapOf(g: Game, model: Model, e: Entity): Snap | undefined {
     person: !!e.npc,
     element: typeof element === 'string' ? element : undefined,
     open: !!e.statuses?.open,
+    hasContents: !!e.contents?.length,
     held: held ? (model.onto.resolve(held.type).sprite ?? held.type) : undefined,
     boss: e.boss && kit ? { kit: kit.id, footprint: kit.footprint, action: 'idle' } : undefined,
   }
@@ -354,7 +358,20 @@ function figureImage(look: Look): Image {
   return img
 }
 
-function bodyOf(e: Snap): Body | undefined {
+/** Whether the picture drawn for this thing where it stands, by its id, has a lit look of its own (no flame over it then). */
+function placedLit(e: Snap, mapId: string): boolean {
+  const placed = CATALOG.placedSprites?.[e.id]
+  return !!(placed?.map === mapId && placed.x === e.x && placed.y === e.y && !e.z && placed.statuses?.lit)
+}
+
+function bodyOf(e: Snap, mapId: string): Body | undefined {
+  const placed = CATALOG.placedSprites?.[e.id]
+  if (placed?.map === mapId && placed.x === e.x && placed.y === e.y && !e.z) {
+    const status = Object.keys(placed.statuses ?? {}).find((s) => e.statuses.includes(s))
+    const d = (status && placed.statuses![status]) || (e.open && placed.open) || (e.hasContents && placed.filled) || placed.sprite
+    const img = image(d.img)
+    if (img) return { img, rect: frameOf(d), ox: d.ax, oy: d.ay, scale: placed.scale }
+  }
   // a person drawn from a look (their own, or one drawn from their id): the sheet's standing frame facing their way
   const look = typeof e.look === 'object' ? e.look : !e.look && e.person ? crowdLook(e.id, e.type) : undefined
   if (e.tags.includes('agent') && look) return { img: figureImage(look), rect: [(DIR_COL[e.facing] ?? 0) * FW, IDLE_ROW * FH, FW, FH], ox: FW / 2, oy: ANCHOR_Y }
@@ -372,13 +389,18 @@ function bodyOf(e: Snap): Body | undefined {
     return { img, rect: [pose.col * fw, pose.row * fh, fw, fh], ox: a.anchorX ?? fw / 2, oy: a.anchorY ?? fh, scale: a.scale, tint: a.tint, flipX: 'flipX' in pose ? pose.flipX : undefined }
   }
   if (!e.tags.includes('portable') || e.spaces || e.type.startsWith('fixture/')) {
+    const themed = themedFixture(CATALOG, e.sprite, mapId, e.statuses.includes('lit'), e.facing)
+    if (themed) {
+      const img = image(themed.def.img)
+      if (img) return { img, rect: frameOf(themed.def), ox: themed.def.ax, oy: themed.def.ay, scale: themed.scale }
+    }
     const f = fixtureDef(e)
     if (f) {
       // a look of its own among the type's variants, kept for its life
       const v = f.variants?.length ? hashStr(e.id) % f.variants.length : -1
-      const d = ((e.statuses.includes('lit') || e.statuses.includes('attuned')) && f.lit) || (e.open && f.open) || (v >= 0 ? f.variants![v] : f.base)
+      const d = ((e.statuses.includes('lit') || e.statuses.includes('attuned')) && ((v >= 0 && f.litVariants?.[v]) || f.lit)) || (e.open && ((!e.hasContents && f.emptied) || f.open)) || (e.facing === 'up' && f.back) || (v >= 0 ? f.variants![v] : f.base)
       const img = image(d.img)
-      return img && { img, rect: frameOf(d), ox: d.ax, oy: d.ay }
+      return img && { img, rect: frameOf(d), ox: d.ax, oy: d.ay, scale: f.scale }
     }
   }
   // gear lying on the ground is a bundle, all alike
@@ -418,7 +440,7 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
   // outside the map the edge continues, so autotiles draw no border there
   const terrainAt = (x: number, y: number): string => terrain[Math.min(H - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x))]
   // the ground under buildings and fences is the ground round them, as the client draws it (ground.ts groundBeneath)
-  const groundAt = groundBeneath(CATALOG, raw.stamps, terrainAt)
+  const groundAt = groundBeneath(CATALOG, raw.stamps, terrainAt, mapId)
   const pic = new Picture(W * T, H * T, scale, BACKGROUND)
   // what is drawn, by depth; two at one depth in the order the client adds them (the sort is stable)
   const ops: { depth: number; draw: () => void }[] = []
@@ -431,10 +453,15 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
 
   // the ground: one tile a cell (a tilemap layer at -100); a dark map's pools have no shore
   at(-100, () => {
+    const detailedSnow = CATALOG.snowSurfaceMaps?.includes(mapId) ?? false
+    const pixels = new Uint8ClampedArray(T * T * 4)
+    const snow = { w: T, h: T, rgba: new Uint8Array(pixels.buffer) }
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
-        const t = tiles[groundTile(atlas, CATALOG, groundAt, x, y, raw.light === 'dark')] ?? tiles[0]
-        if (t) pic.blit({ img: t, rect: [0, 0, T, T], x: x * T, y: y * T, ox: 0, oy: 0 })
+        const tile = tiles[groundTile(atlas, CATALOG, groundAt, x, y, raw.light === 'dark', detailedSnow)] ?? tiles[0]
+        if (!tile) continue
+        if (detailedSnow) paintSnowTile(pixels, tile.rgba, groundAt, terrainAt, x, y)
+        pic.blit({ img: detailedSnow ? snow : tile, rect: [0, 0, T, T], x: x * T, y: y * T, ox: 0, oy: 0 })
       }
   })
 
@@ -443,8 +470,8 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
     for (let x = 0; x < W; x++) {
       const t = terrainAt(x, y)
       // its look, pick and place off the grid, as the client draws it (ground.ts objectAt)
-      const o = objectAt(CATALOG, terrainAt, groundAt, x, y)
-      if (o) at((y + 1) * T - 1, () => sprite(o.def, x, y, { x: x * T + T / 2 + o.dx, y: (y + 1) * T + o.dy, ...(t === 'drygrass' && { tint: 0xe8cf7a }) }))
+      const o = objectAt(CATALOG, terrainAt, groundAt, x, y, mapId)
+      if (o) at((y + 1) * T - 1, () => sprite(o.def, x, y, { x: x * T + T / 2 + o.dx, y: (y + 1) * T + o.dy, sx: o.scale, sy: o.scale, ...(t === 'drygrass' && { tint: 0xe8cf7a }) }))
       // (snow too: frost-bitten tufts, as the client draws them)
       if ((t === 'grass' || t === 'flowers' || t === 'snow') && hash2(x, y, 7) % 100 < (t === 'flowers' ? 70 : 9)) {
         const decals = CATALOG.decals[t === 'flowers' || t === 'snow' ? t : 'grass'] ?? CATALOG.decals.grass
@@ -466,7 +493,8 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
     p.grid.forEach((row, j) => /[#D]/.test(row) && (lastSolid = j))
     if (p.base !== undefined) lastSolid = p.base
     const depth = p.ground ? -40 : (s.y + lastSolid + 1) * T + (p.front ? 3 : -2)
-    at(depth, () => pic.blit({ img, rect: [p.x, p.y, p.tw * T, p.th * T], x: s.x * T, y: s.y * T, ox: 0, oy: 0 }))
+    const tile = p.pixelsPerTile ?? T
+    at(depth, () => pic.blit({ img, rect: [p.x, p.y, p.tw * tile, p.th * tile], x: s.x * T, y: s.y * T, ox: 0, oy: 0, sx: T / tile, sy: T / tile }))
     if (!p.ground) for (let j = 0; j <= lastSolid; j++) for (let i = 0; i < p.tw; i++) roofs.set(`${s.x + i},${s.y + j}`, depth)
     // the healing spring's heart (it bobs; drawn where it starts)
     const heart = CATALOG.ui.iconHeart
@@ -535,7 +563,7 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
 
   function drawThing(e: Snap): void {
     const agent = e.tags.includes('agent')
-    const body = bodyOf(e)
+    const body = bodyOf(e, mapId)
     if (!body) return
     // on its storey, a storey higher for each; one on stairs half a storey more
     const rx = e.x * T + T / 2
@@ -563,7 +591,7 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
     }
     parts.push(...after)
     // what a status draws over it (a brazier with a lit picture of its own shows that, not a flame)
-    const top = OVERLAY_FX.find(([o]) => e.overlays.includes(o) && !(o === 'flame' && CATALOG.fixtures[e.sprite]?.lit))
+    const top = OVERLAY_FX.find(([o]) => e.overlays.includes(o) && !(o === 'flame' && (CATALOG.fixtures[e.sprite]?.lit || themedFixture(CATALOG, e.sprite, mapId, true)?.key.endsWith(':lit') || placedLit(e, mapId))))
     const ov = top && fxFrame(top[1], hashStr(e.id, 31))
     if (ov) parts.push(() => pic.blit({ ...ov, x: rx, y: ry, ox: ov.rect[2] / 2, oy: ov.rect[3], sx: ov.scale ?? 1, sy: ov.scale ?? 1 }))
     const hd = e.held && agent ? CATALOG.items[e.held] : undefined

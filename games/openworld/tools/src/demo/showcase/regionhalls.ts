@@ -127,7 +127,8 @@ export function warHall(p: Place): MapBuilder {
   const D = P.dais
   m.rect(H.x + 11, H.y + 6, 2, 4, 'runner')
   at(m, 'fixture/furniture/table/long', [...span(H.x + 8, H.x + 15, H.y + 3), ...span(H.x + 8, H.x + 15, H.y + 4)])
-  at(m, 'fixture/furniture/chair', [...span(H.x + 8, H.x + 15, H.y + 2), ...span(H.x + 8, H.x + 15, H.y + 5)])
+  // (benches along its sides, every other cell: a bench is wider than a cell)
+  at(m, 'fixture/furniture/bench', [H.y + 2, H.y + 5].flatMap((y) => [9, 11, 13, 15].map((dx): Cell => [H.x + dx, y])))
   at(m, 'fixture/light/candelabrum', [[H.x + 7, H.y + 4], [H.x + 16, H.y + 4]], lit)
   m.fixture('fixture/furniture/throne', D.x + 4, D.y)
   at(m, 'fixture/furniture/desk', [[D.x + 2, D.y]])
@@ -205,7 +206,7 @@ export function countingHall(p: Place): MapBuilder {
   const H = P.hall
   for (let x = H.x + 4; x <= H.x + 16; x++) if (x !== H.x + 10) m.fixture('fixture/furniture/counter', x, H.y + 2)
   at(m, 'fixture/furniture/desk', [[H.x + 5, H.y], [H.x + 8, H.y], [H.x + 13, H.y], [H.x + 16, H.y]])
-  at(m, 'fixture/furniture/chair', [[H.x + 5, H.y + 1], [H.x + 8, H.y + 1], [H.x + 13, H.y + 1], [H.x + 16, H.y + 1]])
+  at(m, 'fixture/furniture/chair', [[H.x + 6, H.y], [H.x + 9, H.y], [H.x + 12, H.y], [H.x + 15, H.y]])
   at(m, 'fixture/container/bookcase', span(P.clerks.x, P.clerks.x + 4, P.clerks.y))
   m.fixture('fixture/furniture/desk', P.clerks.x + 6, P.clerks.y + 1)
   at(m, 'fixture/container/chest', span(P.strong.x, P.strong.x + 5, P.strong.y))
@@ -531,7 +532,9 @@ export function manorHall(p: Place): MapBuilder {
   m.rect(H.x + 12, H.y, 2, H.h + 3, 'runner')
   at(m, 'fixture/furniture/table/long', span(H.x + 4, H.x + 10, H.y + 4))
   at(m, 'fixture/furniture/table/long', span(H.x + 15, H.x + 21, H.y + 4))
-  at(m, 'fixture/furniture/chair', [...span(H.x + 4, H.x + 10, H.y + 3), ...span(H.x + 4, H.x + 10, H.y + 5), ...span(H.x + 15, H.x + 21, H.y + 3), ...span(H.x + 15, H.x + 21, H.y + 5)])
+  // (benches along their sides, every other cell: a bench is wider than a cell; a chair at each table's head)
+  at(m, 'fixture/furniture/bench', [H.y + 3, H.y + 5].flatMap((y) => [5, 7, 9, 16, 18, 20].map((dx): Cell => [H.x + dx, y])))
+  at(m, 'fixture/furniture/chair', [[H.x + 11, H.y + 4], [H.x + 14, H.y + 4]])
   at(m, 'fixture/light/candelabrum', [[H.x + 3, H.y + 4], [H.x + 22, H.y + 4]], lit)
   m.fixture('fixture/furniture/throne', D.x + 4, D.y)
   m.fixture('fixture/furniture/throne', D.x + 5, D.y)
@@ -680,7 +683,7 @@ export function towerHall(p: Place): MapBuilder {
   const R = P.room
   for (const x of [R.x + 4, R.x + 8, R.x + 12]) {
     m.fixture('fixture/furniture/desk', x, R.y + 4)
-    m.fixture('fixture/furniture/chair', x, R.y + 5)
+    m.fixture('fixture/furniture/chair', x + 1, R.y + 4)
   }
   at(m, 'fixture/furniture/bookstand', [[R.x + 2, R.y + 7], [R.x + 13, R.y + 7]])
   m.fixture('fixture/sacred/lectern', R.x + 8, R.y + 8)
@@ -716,7 +719,7 @@ export function observatoryHall(p: Place): MapBuilder {
   m.rect(R.x + 5, R.y + 3, 5, 3, 'carpet_royal')
   at(m, 'fixture/furniture/desk', [[R.x + 2, R.y + 7], [R.x + 12, R.y + 7]])
   at(m, 'fixture/furniture/bookstand', [[R.x + 3, R.y + 2], [R.x + 11, R.y + 2]])
-  at(m, 'fixture/furniture/chair', [[R.x + 2, R.y + 8], [R.x + 12, R.y + 8]])
+  at(m, 'fixture/furniture/chair', [[R.x + 3, R.y + 7], [R.x + 11, R.y + 7]])
   glow(m, R.x + 7.5, R.y + 4, 8, 5, '#c9a2f2', 0.55)
   m.anchors = { gaze: [R.x + 7, R.y + 7], down: [R.x + 1, R.y] }
   return m

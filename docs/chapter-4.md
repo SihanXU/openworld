@@ -174,5 +174,5 @@ Graves), `ch4.shroud` (`shroud`, the reliquary), `dead_ford`, `sins.defeated.nac
 the boon, Severin, `night.shift` 4), `ch4.end` and `world.ch5` (`the_ferry`, 16:00–23:00 in Nailgate), then `chapter4_end`.
 
 **Maps**: `causeway` (36×44, cell (42,33), in from Fairweight's fields; `wp.causeway`), `nailgate` (46×36; the walks and
-houses on piles; `nailgate.piet`, `.hedda`, `.sanne`, `.klaas`, `.chapel`, the rows' rooms), `drowned` (46×34), `boneisle`
+houses on piles; `nailgate.piet`, `.hedda`, `.sanne`, `.klaas`, `.chapel` (the Chapel of the Nail as the user drew it, 2026-11-25: `tools/src/art/nailgate-chapel.py`, their sheet and mock-up in `tools/src/art/nailgate-chapel/`; its own walls `ngchapel_shell`; the altar of the Nail with the crucified man and the nail laid on it, the chronicle on its desk, Nessa's tables, the sexton's forge and anvil, the box of nails, the lamp-keepers' chest, the cots, doorposts bristling with nails, each drawn by its id), the rows' rooms), `drowned` (46×34), `boneisle`
 (40×32, the island; `boneisle.reliquary`; `wp.boneisle`; the arch's fog), `deadford` (30×30, behind the fog).

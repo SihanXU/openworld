@@ -173,20 +173,37 @@ export function buildWhiteveil(): MapBuilder {
   return m
 }
 
-/** The church: the altar over the catacombs, the pews, the statues of the martyrs, the stair down in the east chapel. */
+/**
+ * The church, as the user drew it (2026-11-25, tools/src/art/whiteveil-church.py: their sheet and mock-up): the altar of
+ * Whiteveil in its apse under the window of the lance, the robed dead carved on its face, a candelabrum either side; the
+ * apse's green stone come forward into the nave, the slab with its grates before the altar over the catacombs' air; the
+ * statues of Astra with the lance either side of it among lilies; three pews either side of the runner; in the west
+ * chapel the chest under its white cloth (the sets' chest, the Stole of the Elect) and a candlestick; in the east chapel
+ * the arch over the stair down to the catacombs, lilies either side.
+ */
 export function buildAbbeyChurch(): MapBuilder {
-  const { m, P } = altarHall('chapel', 'whiteveil.church', 'The Church of Whiteveil', '白纱修道院教堂', 'marble', { music: 'temple', floors: [['apse', 'floor_stone']] })
+  const { m, P } = altarHall('wvchurch', 'whiteveil.church', 'The Church of Whiteveil', '白纱修道院教堂', 'marble', { music: 'temple', floors: [['apse', 'floor_stone']] })
   const N = P.nave
   const A = P.apse
-  m.rect(N.x + 9, A.y, 2, N.y + N.h - A.y + 3, 'carpet_royal')
-  m.fixture('fixture/sacred/altar/high', A.x + 3, A.y, { name: L('The altar of Whiteveil', '白纱修道院的祭坛'), tags: ['readable'], props: { text: 'A high altar of white stone. Carved round its foot, many figures in robes lie side by side with their faces covered. Over them: THEY WERE TOLD TO REST YET A LITTLE WHILE.', text_zh: '一座白石砌的高祭坛。坛脚四周刻着许多穿袍子的人，脸盖着，并排躺着。他们上方刻着：他们被吩咐再安息片时。' } })
-  for (const [x, y] of [[A.x + 1, A.y], [A.x + 6, A.y]] as Cell[]) m.fixture('fixture/light/candelabrum', x, y, lit)
-  for (const [x, y] of [[A.x, A.y + 1], [A.x + 7, A.y + 1]] as Cell[]) m.fixture('fixture/sacred/statue/martyr', x, y)
-  for (const y of [N.y + 2, N.y + 5, N.y + 8]) for (const x of [N.x + 2, N.x + 13]) m.fixture('fixture/furniture/pew', x, y)
-  m.fixture('fixture/light/candles', P.chapelW.x + 1, P.chapelW.y, lit)
+  // the runner from below the steps to the door, never up onto the altar's platform
+  m.rect(N.x + 9, N.y + 1, 2, N.h + 2, 'carpet_royal')
+  m.scenery('wvchurch_floor', A.x - 4, A.y)
+  m.fixture('fixture/sacred/altar/high', A.x + 3, A.y, { id: 'whiteveil.altar', name: L('The altar of Whiteveil', '白纱修道院的祭坛'), tags: ['readable'], props: { text: 'A high altar of white stone. Carved round its foot, many figures in robes lie side by side with their faces covered. Over them: THEY WERE TOLD TO REST YET A LITTLE WHILE.', text_zh: '一座白石砌的高祭坛。坛脚四周刻着许多穿袍子的人，脸盖着，并排躺着。他们上方刻着：他们被吩咐再安息片时。' } })
+  for (const [id, x] of [['w', A.x], ['e', A.x + 7]] as const) m.fixture('fixture/light/candelabrum', x, A.y, { id: `whiteveil.candles.${id}`, ...lit })
+  for (const [id, x] of [['w', A.x - 2], ['e', A.x + 9]] as const) m.fixture('fixture/sacred/statue/martyr', x, N.y, { id: `whiteveil.statue.${id}` })
+  const lilies = L('Lilies in a stone urn', '石瓶里的白百合')
+  const W = P.chapelW
   const E = P.chapelE
-  m.doors.down = [E.x + 1, E.y + 1]
+  for (const [i, x, y] of [[1, A.x - 3, N.y], [2, A.x - 1, N.y], [3, A.x + 8, N.y], [4, A.x + 10, N.y], [5, W.x + 2, W.y], [6, E.x, E.y + 1], [7, E.x + 2, E.y + 1]] as const)
+    m.fixture('fixture/nature/plant', x, y, { id: `whiteveil.lilies.${i}`, name: lilies })
+  for (const y of [N.y + 3, N.y + 5, N.y + 7]) for (const x of [N.x + 5, N.x + 14]) m.fixture('fixture/furniture/pew', x, y)
+  m.fixture('fixture/light/candles', W.x, W.y + 1, { id: 'whiteveil.candles.chapel', ...lit })
+  // the stair down to the catacombs against the east chapel's wall, under its arch
+  m.doors.down = [E.x + 1, E.y]
+  m.scenery('wvchurch_stair', E.x, E.y - 3)
   glow(m, A.x + 4, A.y + 1.5, 10, 4, '#ffe2a0', 0.45)
+  glow(m, E.x + 1.5, E.y + 0.2, 4, 3, '#ffc46b', 0.35)
+  glow(m, W.x + 0.5, W.y + 1.2, 3, 2.5, '#ffc46b', 0.35)
   m.anchor('benedek.altar', ...spot(m, N.x + 10, A.y + 2, true))
   return m
 }

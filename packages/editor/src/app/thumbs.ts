@@ -51,7 +51,9 @@ export function terrainPic(c: Catalog, terrain: string): Pic | undefined {
 /** A building as stamped. */
 export function prefabPic(c: Catalog, key: string): Pic | undefined {
   const p = c.prefabs[key]
-  return p ? { img: p.img, x: p.x, y: p.y, w: p.tw * T, h: p.th * T } : undefined
+  if (!p) return undefined
+  const tile = p.pixelsPerTile ?? T
+  return { img: p.img, x: p.x, y: p.y, w: p.tw * tile, h: p.th * tile }
 }
 
 /** A room's walls: its nine-slice block. */

@@ -183,12 +183,11 @@ export function abbeyClose(p: Place): MapBuilder[] {
   nave.backdrop = true
   nave.zone = 'peaceful'
   const inside = (r: { x: number; y: number; w: number; h: number }, t: string) => nave.rect(r.x, r.y, r.w, r.h, t)
-  // the floors: lattice in the transept's arms and the nave, marble in the crossing, the chancel, the chapels, the aisles, the narthex
-  for (const r of Object.values(NP)) inside(r, 'lattice')
-  for (const r of [NP.apse, NP.choir, NP.chapelW1, NP.chapelW2, NP.chapelE1, NP.chapelE2, NP.narthex]) inside(r, 'marble')
-  nave.rect(9, NP.transept.y, 17, NP.transept.h, 'marble')
-  nave.rect(NP.nave.x, NP.nave.y, 3, NP.nave.h, 'marble')
-  nave.rect(NP.nave.x + NP.nave.w - 3, NP.nave.y, 3, NP.nave.h, 'marble')
+  // the ground under the floor's picture, of its colours (the minimap draws it): marble everywhere, the red lattice in
+  // the transept's arms where their carpets lie
+  for (const r of Object.values(NP)) inside(r, 'marble')
+  nave.rect(NP.transept.x, NP.transept.y, 9 - NP.transept.x, NP.transept.h, 'lattice')
+  nave.rect(26, NP.transept.y, NP.transept.x + NP.transept.w - 26, NP.transept.h, 'lattice')
   // the chancel raised a level over the choir's step, the crimson carpet from the west door up to the altar
   const dais = NP.apse.y
   const step = NP.choir.y + NP.choir.h - 3
@@ -196,73 +195,84 @@ export function abbeyClose(p: Place): MapBuilder[] {
   nave.raise(NP.apse.x, dais, NP.apse.w, NP.choir.y - dais, 2)
   nave.raise(NP.choir.x, step, NP.choir.w, 1, 1)
   nave.rect(AX - 1, NP.transept.y + NP.transept.h, 3, NP.nave.h + NP.narthex.h, 'carpet_royal')
-  nave.rect(AX - 1, step - 4, 3, NP.transept.y - (step - 4), 'carpet_royal')
-  nave.rect(AX - 2, dais + 3, 5, step - 4 - (dais + 3), 'carpet_royal')
+  nave.rect(AX - 1, dais + 4, 3, NP.transept.y - (dais + 4), 'carpet_royal')
   nave.set(AX, NAVE.door[1], 'door')
   // the walls: tall faces where the floor runs up to them, the ceiling's dark over the rest (stamped from the plan)
   nave.building('nave_shell', 0, 0)
-  // the apse: the organ before the great window, the high altar before it, the bishop's chair and the cantor's, candelabra, crosses, saints
+  // the user's floors (tools/src/art/sunwell-nave.py): the floor as the mock-up colours it, its carpets and the runners
+  // under all the rest; the slab under the high altar, the steps down from the choir across its width, the labyrinth in
+  // the crossing squared by its spandrels
+  nave.scenery('sunnave_floor', 0, 0)
+  nave.scenery('sunnave_slab', AX - 2, dais + 1)
+  nave.scenery('sunnave_steps', NP.choir.x, NP.transept.y - 5)
+  nave.scenery('sunnave_labyrinth', AX - 3, NP.transept.y)
+  // the apse: the organ before the great window, the high altar close before it, candelabra, crosses, saints
   nave.fixture('fixture/sacred/organ', AX, dais)
-  nave.fixture('fixture/sacred/altar/high', AX, dais + 3, { props: { text: 'To the Light, and to Astra, who bore the Night for us.', text_zh: '献给光，献给为我们承受黑夜的阿斯特拉。' } })
+  nave.fixture('fixture/sacred/altar/high', AX, dais + 2, { props: { text: 'To the Light, and to Astra, who bore the Night for us.', text_zh: '献给光，献给为我们承受黑夜的阿斯特拉。' } })
   nave.fixture('fixture/sacred/reliquary', AX, dais + 1)
   for (const k of [-1, 1]) {
     nave.fixture('fixture/light/candelabrum', AX + k * 3, dais + 3, { statuses: { lit: -1 } })
     nave.fixture('fixture/sacred/cross', AX + k * 4, dais + 1)
     nave.fixture('fixture/sacred/saint', AX + k * 7, NP.choir.y)
-    nave.fixture('fixture/light/candelabrum', AX + k * 8, step - 2, { statuses: { lit: -1 } })
     nave.fixture('fixture/nature/plant', AX + k * 5, dais)
   }
-  nave.fixture('fixture/furniture/throne', AX - 4, dais + 5)
-  nave.fixture('fixture/furniture/chair', AX + 4, dais + 5)
-  // the altar rail along the chancel's edge, a gap for the carpet; the choir's stalls either side within it
-  for (let x = NP.choir.x; x < NP.choir.x + NP.choir.w; x++) if (Math.abs(x - AX) > 2) nave.fixture('fixture/sacred/rail', x, step - 1)
-  for (const k of [-1, 1]) for (const y of [step - 3, step - 2]) nave.fixture('fixture/furniture/pew', AX + k * 6, y)
-  nave.fixture('fixture/sacred/lectern', AX - 3, step + 1)
-  nave.fixture('fixture/sacred/pulpit', NP.choir.x + NP.choir.w, NP.transept.y + 1)
-  // the crossing: the labyrinth in its floor, a clustered pier at each corner
-  nave.building('nave_labyrinth', AX - 2, NP.transept.y + 2)
-  for (const x of [9, 25]) for (const y of [NP.transept.y, NP.transept.y + NP.transept.h - 1]) nave.building('nave_pier', x, y)
-  // the transept's arms: under each rose a doorway, candelabra either side, the founders' tombs, plants
-  for (const cx of [5, 29]) {
+  // the altar rail along the chancel's edge, a gap for the carpet (catalog.ts draws each run as one, by its cells' ids);
+  // the choir's stalls either side within it, the abbot's chair at the head of the east ones
+  for (let x = NP.choir.x; x < NP.choir.x + NP.choir.w; x++) if (Math.abs(x - AX) > 2) nave.fixture('fixture/sacred/rail', x, step - 1, { id: `${nave.id}.rail.${x}` })
+  nave.fixture('fixture/sacred/stalls', AX - 6, step - 2, { id: `${nave.id}.stalls.w` })
+  nave.fixture('fixture/sacred/stalls', AX + 5, step - 2, { id: `${nave.id}.stalls.e` })
+  // the lectern on the runner at the steps' foot, the pulpit at their east end by the crossing's pier (the mock-up's)
+  nave.fixture('fixture/sacred/lectern', AX, NP.transept.y - 1)
+  nave.fixture('fixture/sacred/pulpit', 22, NP.transept.y - 1)
+  // the crossing: a pier at each corner, the user's octagonal ones before the walls' ends
+  for (const x of [9, 25]) nave.building('nave_pier', x, NP.transept.y)
+  for (const x of [9, 25]) for (const y of [NP.transept.y + 2, NP.transept.y + NP.transept.h - 1]) nave.scenery('sunnave_pier', x - 1, y - 4)
+  // the transept's arms: under each rose a doorway, candelabra either side, the founders' tombs in a row before the wall
+  // (each its own stone, catalog.ts by its id), plants
+  for (const [cx, side] of [[5, 'w'], [29, 'e']] as const) {
     for (const k of [-1, 1]) nave.fixture('fixture/light/candelabrum', cx + k * 2, NP.transept.y, { statuses: { lit: -1 } })
-    for (const k of [-2, 0, 2]) nave.fixture('fixture/sacred/tomb', cx + k, NP.transept.y + NP.transept.h - 1, { props: { text: 'Here lies an abbot of Sunwell. The light keeps him.', text_zh: '此处安息着日泉的一位院长。光守着他。' } })
+    for (const k of [-2, 0, 2]) nave.fixture('fixture/sacred/tomb', cx + k, NP.transept.y + 3, { id: `${nave.id}.tomb.${side}${k / 2 + 2}`, props: { text: 'Here lies an abbot of Sunwell. The light keeps him.', text_zh: '此处安息着日泉的一位院长。光守着他。' } })
     for (const k of [-3, 3]) nave.fixture('fixture/nature/plant', cx + k, NP.transept.y + 1)
   }
-  // the nave: two blocks of pews either side of the carpet, the aisles open; candelabra along the walls between the chapels
-  for (let y = NP.nave.y + 3; y < NP.nave.y + NP.nave.h - 2; y += 2)
-    for (const x of [AX - 6, AX - 3, AX + 3, AX + 6]) nave.fixture('fixture/furniture/pew', x, y)
-  for (const y of [NP.nave.y + 2, NP.nave.y + 11, NP.nave.y + 20]) for (const x of [NP.nave.x, NP.nave.x + NP.nave.w - 1]) nave.fixture('fixture/light/candelabrum', x, y, { statuses: { lit: -1 } })
-  // the chapels: a kneeler before each saint, a plant at its side
-  for (const r of [NP.chapelW1, NP.chapelW2, NP.chapelE1, NP.chapelE2]) {
-    nave.fixture('fixture/furniture/pew', r.x + 1, r.y + 2)
+  // the nave: a pew either side of the carpet to a row, from just below the crossing (the user's word: a pair more at
+  // the front) down to the band of carpet at its foot, the aisles open; candelabra down the aisles a cell in from the
+  // walls between the chapels (the larger ones, catalog.ts by their ids)
+  for (let y = NP.nave.y + 1; y < NP.nave.y + NP.nave.h - 2; y += 2) for (const x of [AX - 4, AX + 4]) nave.fixture('fixture/furniture/pew', x, y)
+  for (const [i, y] of [NP.nave.y + 2, NP.nave.y + 11, NP.nave.y + 20].entries())
+    for (const [side, x] of [['w', NP.nave.x + 1], ['e', NP.nave.x + NP.nave.w - 2]] as const) nave.fixture('fixture/light/candelabrum', x, y, { id: `${nave.id}.candelabrum.aisle.${side}${i}`, statuses: { lit: -1 } })
+  // the chapels: each the Most Holy Hall's altar of the saint in her niche (catalog.ts), a kneeler before it, a plant at
+  // its side
+  for (const [id, r] of [['w1', NP.chapelW1], ['w2', NP.chapelW2], ['e1', NP.chapelE1], ['e2', NP.chapelE2]] as const) {
+    nave.fixture('fixture/sacred/altar', r.x + 1, r.y, { id: `${nave.id}.chapel.${id}` })
+    nave.fixture('fixture/furniture/bench', r.x + 1, r.y + 1, { id: `${nave.id}.kneeler.${id}`, name: { en: 'A kneeler', zh: '跪凳' } })
     nave.fixture('fixture/nature/plant', r.x + (r.x < AX ? 0 : 2), r.y + r.h - 1)
   }
-  // the narthex: the font, saints at the door, plants
-  nave.fixture('fixture/sacred/font', AX - 4, NP.narthex.y + 1)
+  // the narthex: a font either side, saints at the door, plants
+  for (const k of [-1, 1]) nave.fixture('fixture/sacred/font', AX + k * 4, NP.narthex.y + 1)
   for (const k of [-1, 1]) {
     nave.fixture('fixture/sacred/saint', AX + k * 3, NP.narthex.y)
     nave.fixture('fixture/nature/plant', AX + k * 2, NP.narthex.y + NP.narthex.h - 1)
   }
-  // the light: the great window's gold on the chancel, the roses' colours in the arms, the choir's lancets, the chapels'
-  // violet, by day; the candelabra and sconces by night
+  // the light: the great window's gold on the chancel, the roses' colours in the arms, the choir's bay windows, by day;
+  // the chapels' candles always; the candelabra by night
   nave.lights.push({ x: AX, y: dais + 6, w: 5, h: 7, color: '#ffd16b', shape: 'lancet', when: 'sun', strength: 0.5 })
   for (const [x, c] of [[5, '#d9474e'], [29, '#4a7fd6']] as [number, string][]) nave.lights.push({ x, y: NP.transept.y + 4, w: 6, h: 6, color: c, shape: 'rose', when: 'sun', strength: 0.45 })
-  for (const [x, c] of [[10, '#d9474e'], [24, '#4a7fd6']] as [number, string][]) nave.lights.push({ x, y: NP.choir.y + 3, w: 2, h: 4, color: c, shape: 'lancet', when: 'sun', strength: 0.4 })
-  for (const r of [NP.chapelW1, NP.chapelW2, NP.chapelE1, NP.chapelE2]) nave.lights.push({ x: r.x + 1, y: r.y + 2, w: 2, h: 3, color: '#8c5cc2', shape: 'lancet', when: 'sun', strength: 0.4 })
-  for (const [x, y] of [[AX, dais + 3], [5, NP.transept.y + 1], [29, NP.transept.y + 1], [AX, NP.choir.y + 2], [NP.nave.x, NP.nave.y + 11], [NP.nave.x + NP.nave.w - 1, NP.nave.y + 11]])
+  for (const [x, c] of [[10, '#8c5cc2'], [24, '#4a7fd6']] as [number, string][]) nave.lights.push({ x, y: NP.choir.y + 3, w: 2, h: 4, color: c, shape: 'lancet', when: 'sun', strength: 0.4 })
+  for (const r of [NP.chapelW1, NP.chapelW2, NP.chapelE1, NP.chapelE2]) nave.lights.push({ x: r.x + 1, y: r.y + 1, w: 3, h: 3, color: '#ffc46b', shape: 'glow', when: 'always', strength: 0.35 })
+  for (const [x, y] of [[AX, dais + 2], [5, NP.transept.y + 1], [29, NP.transept.y + 1], [AX, NP.choir.y + 2], [NP.nave.x + 1, NP.nave.y + 11], [NP.nave.x + NP.nave.w - 2, NP.nave.y + 11]])
     nave.lights.push({ x, y, w: 5, h: 4, color: '#ffb35c', shape: 'glow', when: 'night', strength: 0.45 })
-  // in the choir the view draws back and looks up at the apse; in the nave, along it to the altar
-  nave.vistas.push({ at: [NP.choir.x, NP.apse.y, NP.choir.w, NP.choir.y + NP.choir.h - NP.apse.y], zoom: 0.6, focus: [AX, NP.apse.y - 4], share: 0.5 })
-  nave.vistas.push({ at: [2, NP.transept.y, 31, NP.nave.y + NP.nave.h - NP.transept.y], zoom: 0.75, focus: [AX, NP.apse.y], share: 0.35 })
-  nave.anchors = { altar: [AX, dais + 5], choir: [AX, step - 3], pulpit: [NP.choir.x + NP.choir.w - 1, NP.transept.y + 2], font: [AX - 4, NP.narthex.y + 2] }
+  // (no vistas: the camera follows the walker, a view drawn back and pulled to the apse only jarring)
+  nave.anchors = { altar: [AX, dais + 4], choir: [AX, step - 3], pulpit: [22, NP.transept.y - 2], font: [AX - 4, NP.narthex.y + 2] }
   nave.doors.out = [AX, NAVE.door[1]]
   linkDoors(b, [b.doors['church.west']], nave, [nave.doors.out])
   b.portal(b.doors['church.west2'][0], b.doors['church.west2'][1], nave.id, AX, NAVE.door[1] - 1, nave.name)
 
   // ------------------------------------------------------------------ the crypt under the choir, the belfry over the south-west tower, the library, the refectory
   // (each from its own plan, art/arch/plans.ts HALLS; laid and furnished in halls.ts)
+  // (the stair down in the west arm's corner by the nave, its picture laid as ground over it: sunwell-nave.py)
   const crypt = cryptHall(p)
-  linkStair(nave, [3, NP.transept.y + 1], crypt, crypt.anchors.stair, true)
+  linkStair(nave, [3, NP.transept.y + 5], crypt, crypt.anchors.stair, true)
+  nave.scenery('sunnave_stair', 2, NP.transept.y + 4)
   const belfry = belfryHall(p)
   linkStair(nave, [NP.narthex.x, NP.narthex.y], belfry, belfry.anchors.stair, false)
   const library = libraryHall(p)

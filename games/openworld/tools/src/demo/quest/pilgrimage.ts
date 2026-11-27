@@ -121,10 +121,12 @@ export function buildRest(): MapBuilder {
 
 /** The chapel of the Five at the Rest: the five wounds round Astra over the altar, the nave, and the priest's cell beside it. */
 export function buildRestChapel(): MapBuilder {
-  const { m, P } = flHouse('prchapel', 'waystation.chapel', 'Chapel of the Five', '五伤礼拜堂', 'floor_stone', ['nave', 'cell'], { music: 'temple' })
+  // (dressed as the user drew it, 2026-11-24: tools/src/art/rest-chapel.py, its walls, the runner, the cell's things)
+  const { m, P } = flHouse('wschapel', 'waystation.chapel', 'Chapel of the Five', '五伤礼拜堂', 'floor_stone', ['nave', 'cell'], { music: 'temple' })
   const N = P.nave
   const ax = N.x + 5
-  m.rect(ax - 1, N.y + 1, 3, N.h - 1, 'carpet')
+  // the runner from the altar to the door, deep red, gold lines and the cross on it
+  m.scenery('wschapel_runner', ax - 1, N.y + 1)
   m.fixture('fixture/sacred/altar', ax, N.y, {
     id: 'waystation.altar',
     name: L('The altar of the five wounds', '五伤祭坛'),
@@ -132,15 +134,21 @@ export function buildRestChapel(): MapBuilder {
     props: { text: 'Astra on the holy wood, carved in white stone: a crown of thorns, the scourge\'s marks, the ribs of the fast, the nails, the lance in the side. Below: WHO BEARS, IS NEAR TO GOD.', text_zh: '白石雕的阿斯特拉，钉在圣木上：头戴荆棘冠，身上有鞭痕，肋骨因断食而根根分明，手足钉着圣钉，肋旁一道枪伤。底下刻着：承受者，近于神。' },
   })
   for (const x of [ax - 3, ax + 3]) m.fixture('fixture/light/candles', x, N.y, { statuses: { lit: -1 } })
-  m.fixture('fixture/furniture/bookstand', N.x + 1, N.y + 3, { name: L('The Litany of the Five', '五苦祷文'), tags: ['readable'], props: { text: 'Suffering is not God\'s abandonment. It is the proof the debt is being paid. As long as one bears the Five, the Long Night shall not return.', text_zh: '苦难并非神的遗弃。苦难，是灾厄得以被偿还的证明。只要仍有人承担五苦，极夜便不会归来。' } })
-  for (const x of [ax - 3, ax + 3]) m.fixture('fixture/furniture/bench', x, N.y + 6)
+  m.fixture('fixture/furniture/bookstand', ax + 5, N.y, { name: L('The Litany of the Five', '五苦祷文'), tags: ['readable'], props: { text: 'Suffering is not God\'s abandonment. It is the proof the debt is being paid. As long as one bears the Five, the Long Night shall not return.', text_zh: '苦难并非神的遗弃。苦难，是灾厄得以被偿还的证明。只要仍有人承担五苦，极夜便不会归来。' } })
+  // a long pew either side of the runner, along the nave
+  for (const [x, side] of [[ax - 2, 'w'], [ax + 2, 'e']] as const) m.fixture('fixture/furniture/pew/long', x, N.y + N.h - 3, { id: `waystation.pew.${side}` })
+  // a pot of flowers in each of the nave's south corners
+  for (const x of [N.x + 1, N.x + N.w - 2]) m.fixture('fixture/nature/plant', x, N.y + N.h - 2)
   // the priest's cell: his cot, his rug, the wood for the brazier he does not light
   const C = P.cell
-  m.fixture('fixture/furniture/bed', C.x + 3, C.y + 1, { name: L("The priest's cot", '司铎的小床') })
-  m.building('decor_rug', C.x + 1, C.y + 4)
-  m.building('decor_firewood', C.x, C.y)
+  m.fixture('fixture/furniture/bed', C.x + 4, C.y + 1, { name: L("The priest's cot", '司铎的小床') })
+  // his night table at the cot's head, and a pot of flowers in the cell's south-east corner
+  m.fixture('fixture/container/drawers', C.x + 3, C.y, { id: 'waystation.nightstand', name: L('Night table', '床头柜') })
+  m.fixture('fixture/nature/plant', C.x + C.w - 1, C.y + C.h - 2)
+  m.scenery('wschapel_rug', C.x, C.y + 3)
+  m.scenery('wschapel_firewood', C.x, C.y - 1)
   m.anchor('caius.altar', ax, N.y + 2)
-  m.anchor('caius.bed', C.x + 3, C.y + 2)
+  m.anchor('caius.bed', C.x + 4, C.y + 2)
   m.regions.altar = [ax - 2, N.y + 1, 5, 3]
   return m
 }

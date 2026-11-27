@@ -280,16 +280,20 @@ export function buildChapel(): MapBuilder {
   for (const x of [A.x, A.x + 4]) m.fixture('fixture/light/candles', x, A.y)
   // the pews either side of the aisle up to the hearth; on the east, where the roof came down, the rest are gone
   const ax = A.x + 2
-  for (const y of [N.y + 2, N.y + 4]) m.fixture('fixture/furniture/pew/old', ax - 3, y)
+  for (const y of [N.y + 2, N.y + 5]) m.fixture('fixture/furniture/pew/old', ax - 3, y)
   m.fixture('fixture/furniture/pew/old', ax + 3, N.y + 2)
   // where the roof fell in: the nave's east side open to the sky, grass up through its flags, the fallen stone, a beam,
   // the slates, the stones of the wall's top
   for (let y = N.y + 3; y < N.y + N.h; y++)
     for (let x = ax + 1; x < N.x + N.w; x++) if (Math.hypot((x - (ax + 4)) / 3.2, (y - (N.y + 6)) / 2.6) < 1 + (((x * 7 + y * 13) % 5) - 2) * 0.08 && m.free(x, y)) m.set(x, y, 'grass')
   m.fixture('fixture/nature/boulder', ax + 4, N.y + 5, { name: L('A fallen stone', '坠落的石块') })
-  for (const [name, x, y] of [['decor_beams', ax + 2, N.y + 7], ['decor_slates', ax + 3, N.y + 3], ['decor_slates', ax + 5, N.y + 7], ['decor_stones', N.x + N.w - 1, N.y + 4], ['decor_stones', N.x, N.y + 7], ['decor_cracks_0', ax - 1, N.y + 6], ['decor_cracks_2', ax - 4, N.y + 7], ['decor_leaves_1', ax, N.y + 1], ['decor_leaves_2', ax - 2, N.y + 6]] as [string, number, number][]) m.building(name, x, y)
+  // the floor as the user drew it (tools/src/art/first-dawn-chapel.py): flags, cracks, the grass's ragged edge, the dais's
+  // steps, the stones and weeds strewn on it; laid as ground under all that stands
+  m.scenery('dawnchapel_floor', 0, 0)
   // the bell tower's foot through the arch: the rope down its north wall, rung from the floor below it
-  m.scenery('bell_rope', T.x + 1, T.y - 1)
+  // (the user's beam with its rope, five cells across and four high: its ends in the piers either side of the tower,
+  // the rope over the tower's middle cell)
+  m.scenery('dawnchapel_bell', T.x - 1, T.y - 3)
   m.regions.belfry = [T.x, T.y, 3, 2]
   m.creature('beast/bat', ax, N.y + 3, HUNT(4))
   // the light: the sun through the window at its head onto the hearth, and where the roof is gone, the sky's

@@ -22,6 +22,43 @@ import { FIN_RULES } from './finale.ts'
 const L = (en: string, zh: string): Text => ({ en, zh })
 
 
+/**
+ * The ferrykeeper's camp at the Ford as it is drawn (the camp pack, tools/src/art/ferry-camp.py; the client's catalogue
+ * draws each of these with its piece of the pack while it stands on its cell): every thing of the camp the pack pictures,
+ * its id and cell, each named as its piece is (the lantern by the pond is drawn with the lantern post's). The camp stands
+ * round its fire: the tent to the west with her lantern post, potted flowers and chest; the bench, the small table and
+ * the stool round the fire under its rack; to the east the stall where she keeps what mends the crossing, under its
+ * awning, with its barrel, flowers, crate, planks and rope, and the block she splits wood on, her old axe still in it.
+ * Three of the pack's groups are drawn whole by their things together: each thing of a group stands where the group's
+ * picture has it, counted from its first (the tent's, the fire's, the stall's), as client/src/ferry-camp.json says.
+ * The plain ids are the map's own, as it gives them (a test holds each to its thing).
+ */
+export const FORD_CAMP = {
+  map: 'ford',
+  tent: { id: 'ford.tent', x: 10, y: 14 },
+  lantern: { id: 'ford.camp.lantern', x: 8, y: 14 },
+  chest: { id: 'ford.chest', x: 12, y: 14 },
+  planter: { id: 'ford.camp.planter', x: 9, y: 15 },
+  fire: { id: 'ford.campfire', x: 14, y: 16 },
+  rack: { id: 'ford~g', x: 14, y: 15 },
+  seat: { id: 'ford.camp.seat', x: 16, y: 16 },
+  bench: { id: 'ford~f', x: 14, y: 18 },
+  table: { id: 'ford.camp.table', x: 11, y: 16 },
+  stall: { id: 'ford.camp.stall', x: 20, y: 14 },
+  pot: { id: 'ford.camp.pot', x: 18, y: 14 },
+  barrel: { id: 'ford.camp.barrel', x: 19, y: 14 },
+  crate: { id: 'ford.camp.crate', x: 21, y: 14 },
+  planks: { id: 'ford.camp.planks', x: 21, y: 15 },
+  rope: { id: 'ford.camp.rope', x: 22, y: 15 },
+  block: { id: 'ford~i', x: 17, y: 17 },
+  axe: { id: 'ford~ij', x: 17, y: 17 },
+  logs: { id: 'ford~h', x: 7, y: 15 },
+  crates: { id: 'ford.camp.crates', x: 7, y: 13 },
+  sacks: { id: 'ford.camp.sacks', x: 18, y: 15 },
+  sign: { id: 'ford.camp.sign', x: 15, y: 12 },
+  pondLantern: { id: 'ford~l', x: 16, y: 21 },
+} as const
+
 /** Fact prefixes only the story's rules and scenes may change. */
 export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'sins.', 'game.', 'ch1.', 'ch2.', 'ch3.', 'ch4.', 'ch5.', 'fin.', 'night.', 'legend.', 'rescue.', 'village.', 'haven.', 'waypoints.', 'lesson.', 'step.', 'world.']
 
@@ -73,6 +110,22 @@ const FORD_RULES: Rule[] = [
     host: { type: 'actor/person/ferrykeeper' },
     on: 'impulse/handle',
     tree: { if: { all: [fact('ford.winch', 1), fact('ford.crossed', 0), is('actor', { type: 'actor/person' }), { none: 'instrument' }, { not: { param: { key: 'say', cmp: { ne: '' } } } }] }, then: { do: [notify('ferry')] }, else: 'inherit' },
+  }),
+  story({
+    id: 'ford/far-post',
+    label: L('Pull the line at {target}', '拉{target}的渡绳'),
+    doc: "The line's far end, a post on the far bank (a post's `ferry` prop: `far`). The ferry goes one way: she takes one over once, and a pull on the far post calls nobody back; before the line is mended it hangs slack.",
+    host: { type: WINCH, notStatus: ['broken'] },
+    on: 'impulse/handle',
+    tree: {
+      if: { all: [{ prop: { role: 'host', key: 'ferry', cmp: 'far', default: '' } }, { none: 'instrument' }] },
+      then: {
+        if: fact('ford.winch', 1),
+        then: { do: [log('The line runs taut across the water. You pull on it a few times. Nothing stirs across the river.', '渡绳绷得紧紧的，横过水面。你拉了几下，河那边没有动静。')] },
+        else: { do: [log('The line runs from the post into the water and hangs slack. It has parted somewhere across the river.', '渡绳从木桩上垂进水里，松松地漂着。是在河那边什么地方断的。')] },
+      },
+      else: 'inherit',
+    },
   }),
   // ---------------------------------------------------------------- the dead tree
   story({

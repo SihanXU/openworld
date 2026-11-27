@@ -325,7 +325,7 @@ const DECOR: Record<string, (b: MapBuilder, s: Style) => void> = {
     patches(b, 'grass', 0.16, (c) => c === 'dirt', [2, 4])
     b.sprinkle('fixture/nature/tuft', 0.06, (_x, _y, t) => t === 'grass', inner(b))
     b.sprinkle(s.lamp, 0.02, byStreet(b, s), inner(b))
-    b.sprinkle('fixture/furniture/rack', 0.05, byDoor(b, 2), inner(b))
+    b.sprinkle('fixture/furniture/rack/arms', 0.05, byDoor(b, 2), inner(b))
     b.sprinkle('fixture/remains/bones', 0.006, (_x, _y, t) => t === 'dirt', inner(b))
   },
   // the Vale: dry grass, fields gone to dust round the houses with their haystacks, sacks and carts waiting for the weighing
@@ -637,7 +637,7 @@ const KINDS: Record<string, Build> = {
     building(b, rng.pick(low(s)), x + w - 11, y + h - 7, 'barracks')
     b.fixture('fixture/dummy', x + 6, y + 4)
     b.fixture('fixture/dummy', x + 8, y + 4)
-    b.fixture('fixture/furniture/rack', x + w - 7, y + 4)
+    b.fixture('fixture/furniture/rack/arms', x + w - 7, y + 4)
     b.fixture('fixture/water/well', x + w - 8, y + 10)
     b.fixture('fixture/light/brazier', keep[0] - 2, keep[1] + 1)
     b.fixture('fixture/light/brazier', keep[0] + 2, keep[1] + 1)

@@ -22,7 +22,7 @@ export const CH4_SPOTS: Record<string, Spot[]> = {
   // the Ferryman's oar-pin, in a box at the landing beside Klaas's coin box
   nailgate: [{ at: [44, 25], kind: 'chest', name: L('A box of oar-pins', '一箱桨栓') }],
   // the Gravelamp's mantle, in the lamp-keepers' chest at the chapel's east wall
-  'nailgate.chapel': [{ at: [14, 12], kind: 'chest', name: L("The lamp-keepers' chest", '点灯人的箱子') }],
+  'nailgate.chapel': [{ at: [14, 12], kind: 'chest', id: 'nailgate.lampchest', name: L("The lamp-keepers' chest", '点灯人的箱子') }],
   // the Reliquary's cowl in the keepers' chest, its robe on a keeper facing the Shroud, its earring in the far corner
   'boneisle.reliquary': [
     { at: [4, 16], kind: 'chest', name: L("The keepers' chest", '守匣人的箱子') },

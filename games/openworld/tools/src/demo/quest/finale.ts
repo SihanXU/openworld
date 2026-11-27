@@ -11,7 +11,7 @@ import { L, levelCreatures } from '../kit.ts'
 import { lamp, parterre, unshut } from '../showcase/dress.ts'
 import { glowAt } from '../showcase/ground.ts'
 import { linkDoors, linkStair } from '../showcase/rooms.ts'
-import { NAVE } from '../../art/arch/plans.ts'
+import { HOLY_NAVE } from '../../art/arch/plans.ts'
 import { lit, glow } from '../showcase/halls.ts'
 import { seal, ways } from './country.ts'
 import { spot } from './chapter2.ts'
@@ -31,7 +31,7 @@ const AVENUE = { x: 21, y: 70, w: 8 }
 /** Where the scenes stage their people. */
 export const FIN_AT = {
   arrival: { severin: [26, 78] as Cell },
-  primate: { primate: [17, 22] as Cell },
+  primate: { primate: [17, 20] as Cell },
   confluence: { severin: [22, 9] as Cell },
   // (one comes in out of Astra's sight)
   holiest: { arrive: [14, 26] as Cell, bier: [14, 5] as Cell, astra: [14, 15] as Cell, severin: [12, 25] as Cell, gate: [[14, 28], [15, 28]] as Cell[] },
@@ -106,60 +106,94 @@ export function buildHolyClose(): MapBuilder[] {
   // within: the nave, its door the church's west door
   const nave = buildHolyNave()
   linkDoors(m, [m.doors['church.west']], nave, [nave.doors.out])
-  m.portal(m.doors['church.west2'][0], m.doors['church.west2'][1], nave.id, NAVE.axis, NAVE.door[1] - 1, nave.name)
+  m.portal(m.doors['church.west2'][0], m.doors['church.west2'][1], nave.id, HOLY_NAVE.axis, HOLY_NAVE.door[1] - 1, nave.name)
   return [m, nave]
 }
 
 /**
- * The nave of the Most Holy Hall (its plan art/arch/plans.ts NAVE, the showcase's great church's): dark, the candles by
- * the hundred, the five channels' grates in its floor; at the high altar the Primate, and behind the altar the stone that
- * lifts on the stair down to the Confluence.
+ * The nave of the Most Holy Hall, as the user's mock-up lays it (its own plan, art/arch/plans.ts HOLY_NAVE; its walls,
+ * floors and things drawn by tools/src/art/holyhall-nave.py, catalog.ts drawing each of its things by its id): dark, the
+ * candles by the hundred. In the sanctuary the high altar between its candelabra and crosses, a statue either side, the
+ * stone behind it over the stair down to the Confluence, which the Primate lifts; the rail before it; the choir's stalls,
+ * the Primate's own chair at the head of the east ones; three steps down to the crossing, where the five lands' channels
+ * meet in the floor at the star; the nave's aisles lit by candelabra; the two fonts at the door.
  */
 export function buildHolyNave(): MapBuilder {
-  const NP = NAVE.parts
-  const AX = NAVE.axis
-  const nave = new MapBuilder('holyhall.nave', L('The Most Holy Hall — the Nave', '至圣大殿·中殿'), 'interior', NAVE.plan[0].length, NAVE.plan.length, 'void', 'temple', 'indoor', 'holy')
+  const P = HOLY_NAVE.parts
+  const AX = HOLY_NAVE.axis
+  const nave = new MapBuilder('holyhall.nave', L('The Most Holy Hall — the Nave', '至圣大殿·中殿'), 'interior', HOLY_NAVE.plan[0].length, HOLY_NAVE.plan.length, 'void', 'temple', 'indoor', 'holy')
   nave.zone = 'peaceful'
   const inside = (r: { x: number; y: number; w: number; h: number }, t: string) => nave.rect(r.x, r.y, r.w, r.h, t)
-  for (const r of Object.values(NP)) inside(r, 'lattice')
-  for (const r of [NP.apse, NP.choir, NP.chapelW1, NP.chapelW2, NP.chapelE1, NP.chapelE2, NP.narthex]) inside(r, 'marble')
-  nave.rect(9, NP.transept.y, 17, NP.transept.h, 'marble')
-  const dais = NP.apse.y
-  const step = NP.choir.y + NP.choir.h - 3
-  nave.raise(NP.choir.x, dais, NP.choir.w, step - dais, 2)
-  nave.raise(NP.apse.x, dais, NP.apse.w, NP.choir.y - dais, 2)
-  nave.raise(NP.choir.x, step, NP.choir.w, 1, 1)
-  nave.rect(AX - 1, NP.transept.y + NP.transept.h, 3, NP.nave.h + NP.narthex.h, 'carpet_royal')
-  nave.rect(AX - 1, step - 4, 3, NP.transept.y - (step - 4), 'carpet_royal')
-  nave.rect(AX - 2, dais + 3, 5, step - 4 - (dais + 3), 'carpet_royal')
-  nave.set(AX, NAVE.door[1], 'door')
-  nave.building('nave_shell', 0, 0)
-  // the apse: the high altar, and behind it the stone over the stair down (lifted by the Primate)
-  nave.fixture('fixture/sacred/altar/high', AX, dais + 3, { props: { text: 'TO ASTRA, WHO BEARS THE NIGHT FOR US. AS LONG AS SOMEONE BEARS THE FIVE, THE DAWN WILL NOT GO OUT.', text_zh: '献给为我们承受黑夜的阿斯特拉。只要仍有人承担五苦，黎明便不会熄灭。' } })
-  nave.doors.down = [AX, dais + 1]
-  for (const k of [-1, 1]) {
-    nave.fixture('fixture/light/candelabrum', AX + k * 3, dais + 3, lit)
-    nave.fixture('fixture/sacred/cross', AX + k * 4, dais + 1)
-    nave.fixture('fixture/sacred/saint', AX + k * 7, NP.choir.y)
-    nave.fixture('fixture/light/candelabrum', AX + k * 8, step - 2, lit)
+  // the ground under the floor's picture, of the picture's colours (the minimap draws it): grey stone in the sanctuary,
+  // the choir and the nave, pale in the crossing, the chapels and the narthex, the red tiles of the arms and aisles
+  for (const r of Object.values(P)) inside(r, 'lattice')
+  for (const r of [P.apse, P.choir, P.nave]) inside(r, 'floor_stone')
+  for (const r of [P.crossing, P.chapelW1, P.chapelW2, P.chapelE1, P.chapelE2, P.narthex]) inside(r, 'marble')
+  // the sanctuary a step over the choir (the rail on its edge), the choir two over the crossing (the steps its last rows)
+  const rail = 21
+  const steps = P.crossing.y - 1
+  nave.raise(P.apse.x, P.apse.y, P.apse.w, P.apse.h, 3)
+  nave.raise(P.choir.x, P.choir.y, P.choir.w, rail + 1 - P.choir.y, 3)
+  nave.raise(P.choir.x, rail + 1, P.choir.w, steps - (rail + 1), 2)
+  nave.raise(P.choir.x, steps, P.choir.w, 1, 1)
+  // the runner from the altar's foot to the steps, and from the crossing's star to the door
+  const altar = 19
+  nave.rect(AX - 1, altar + 1, 3, steps - (altar + 1), 'carpet_royal')
+  nave.rect(AX - 1, P.nave.y, 3, P.nave.h + P.narthex.h, 'carpet_royal')
+  nave.set(AX, HOLY_NAVE.door[1], 'door')
+  nave.building('holynave_shell', 0, 0)
+  nave.scenery('holynave_floor', 0, 0)
+  // the sanctuary: the high altar; behind it the stone over the stair down (the Primate lifts it: rule slab/told), candles
+  // at the apse's wall either side of it
+  nave.fixture('fixture/sacred/altar/high', AX, altar, { id: 'holyhall.nave.altar', props: { text: 'TO ASTRA, WHO BEARS THE NIGHT FOR US. AS LONG AS SOMEONE BEARS THE FIVE, THE DAWN WILL NOT GO OUT.', text_zh: '献给为我们承受黑夜的阿斯特拉。只要仍有人承担五苦，黎明便不会熄灭。' } })
+  nave.doors.down = [AX, 12]
+  nave.fixture('fixture/sacred/slab', AX, 12, { id: 'holyhall.nave.slab', props: { text: 'A slab of the floor behind the altar, a gilt lance laid into it. Its edges are worn bright, as if it has been lifted many times.', text_zh: '祭坛后面地上的一块石板，嵌着一支镀金的圣枪。石板的边磨得发亮，像是被掀起过许多次。' } })
+  // either side of the altar a candelabrum before a processional cross, a statue on its plinth beyond; the rail's two
+  // runs, the way to the altar open between them
+  for (const [k, id] of [[-1, 'w'], [1, 'e']] as const) {
+    nave.fixture('fixture/light/candles', AX + k * 3, 12, { id: `holyhall.nave.candles.${id}`, ...lit })
+    nave.fixture('fixture/light/candelabrum', AX + k * 4, altar, { id: `holyhall.nave.candelabrum.${id}`, ...lit })
+    nave.fixture('fixture/sacred/cross', AX + k * 4, altar - 1, { id: `holyhall.nave.cross.${id}` })
+    nave.fixture('fixture/sacred/saint', AX + k * 6, altar, { id: `holyhall.nave.statue.${id}` })
+    for (let i = 0; i < 6; i++) nave.fixture('fixture/sacred/rail', AX + k * (2 + i), rail, { id: `holyhall.nave.rail.${id}.${i}` })
   }
-  for (let x = NP.choir.x; x < NP.choir.x + NP.choir.w; x++) if (Math.abs(x - AX) > 2) nave.fixture('fixture/sacred/rail', x, step - 1)
-  // the crossing: a grate for each of the five channels in its floor, running toward the altar
-  for (const [i, t] of [RED_CHANNEL, CHANNELS.dust, CHANNELS.black, CHANNELS.white, CHANNELS.thorn].entries()) nave.fixture(t, AX - 4 + i * 2, NP.transept.y + 3)
-  for (const x of [9, 25]) for (const y of [NP.transept.y, NP.transept.y + NP.transept.h - 1]) nave.building('nave_pier', x, y)
-  // the nave: pews, candles by the hundred along the walls
-  for (let y = NP.nave.y + 3; y < NP.nave.y + NP.nave.h - 2; y += 2) for (const x of [AX - 6, AX - 3, AX + 3, AX + 6]) nave.fixture('fixture/furniture/pew', x, y)
-  for (let y = NP.nave.y + 1; y < NP.nave.y + NP.nave.h; y += 4) for (const x of [NP.nave.x, NP.nave.x + NP.nave.w - 1]) nave.fixture('fixture/light/candles', x, y, lit)
-  for (const r of [NP.chapelW1, NP.chapelW2, NP.chapelE1, NP.chapelE2]) nave.fixture('fixture/light/candelabrum', r.x + 1, r.y + 1, lit)
-  nave.fixture('fixture/sacred/font', AX - 4, NP.narthex.y + 1)
+  // the choir: two rows of stalls either side of the runner, the Primate's chair at the head of the east ones
+  for (const [i, y] of [[1, 25], [2, 28]] as const) {
+    nave.fixture('fixture/sacred/stalls', AX - 6, y, { id: `holyhall.nave.stalls.w${i}` })
+    nave.fixture('fixture/sacred/stalls', AX + 5, y, { id: `holyhall.nave.stalls.e${i}` })
+  }
+  // the crossing: the five lands' channels in its floor, meeting at the star (the floor's picture draws them; these are
+  // the things one looks at), the piers at its corners and the nave's head
+  for (const [t, x] of [[RED_CHANNEL, AX - 6], [CHANNELS.dust, AX - 3], [CHANNELS.black, AX], [CHANNELS.white, AX + 3], [CHANNELS.thorn, AX + 6]] as const) nave.fixture(t, x, 33)
+  for (const [x, y] of [[8, 33], [26, 33], [9, 40], [25, 40]]) nave.scenery('holynave_pier', x - 1, y - 5)
+  // the nave: a pew either side of the runner to a row (one sits on any of its three cells); candelabra down its aisles; the fonts either side of the door
+  for (let y = P.nave.y + 2, i = 0; y < P.nave.y + P.nave.h - 1; y += 2, i++) for (const [x, id] of [[AX - 4, 'w'], [AX + 4, 'e']] as const) nave.fixture('fixture/furniture/pew', x, y, { id: `holyhall.nave.pew.${id}${i}` })
+  const aisle = [35, 41, 48, 53]
+  aisle.forEach((y, i) => {
+    for (const [x, id] of [[7, 'w'], [27, 'e']] as const) nave.fixture('fixture/light/candelabrum', x, y, { id: `holyhall.nave.candelabrum.aisle.${id}${i}`, ...lit })
+  })
+  for (const [x, id] of [[AX - 4, 'w'], [AX + 4, 'e']] as const) nave.fixture('fixture/sacred/font', x, P.narthex.y + 1, { id: `holyhall.nave.font.${id}` })
+  // the transept's arms: in the west one the vestry (its wardrobe, rack, stand and boxes are the sets' chests, sets/fin.ts),
+  // its table; in the east one the side altar under its niche, lilies either side of it, a kneeler before it
+  nave.fixture('fixture/furniture/table', 5, 27, { id: 'holyhall.nave.table', name: L('The vestry table', '法衣室的桌子') })
+  nave.fixture('fixture/sacred/altar', 30, 25, { id: 'holyhall.nave.altar.side', name: L('The side altar', '侧祭坛') })
+  const lilies = L('Lilies in a stone urn', '石瓶里的白百合')
+  for (const [x, id] of [[27, 'w'], [32, 'e']] as const) nave.fixture('fixture/nature/plant', x, 25, { id: `holyhall.nave.lilies.${id}`, name: lilies })
+  const kneeler = L('A kneeler', '跪凳')
+  nave.fixture('fixture/furniture/bench', 30, 27, { id: 'holyhall.nave.kneeler.side', name: kneeler })
+  // the chapels: each an altar in its niche, a kneeler before it
+  for (const [id, x, y] of [['w1', 5, 35], ['w2', 5, 45], ['e1', 29, 35], ['e2', 29, 45]] as const) {
+    nave.fixture('fixture/sacred/altar', x, y, { id: `holyhall.nave.chapel.${id}`, name: L('A chapel\'s altar', '礼拜堂的祭坛') })
+    nave.fixture('fixture/furniture/bench', x, y + 1, { id: `holyhall.nave.kneeler.${id}`, name: kneeler })
+  }
   // the light: the candles' gold, the great window dark (the sun is short now)
-  nave.lights.push({ x: AX, y: dais + 4, w: 7, h: 6, color: '#ffc46b', shape: 'glow', when: 'always', strength: 0.5 })
-  for (const [x, y] of [[NP.nave.x, NP.nave.y + 9], [NP.nave.x + NP.nave.w - 1, NP.nave.y + 9], [NP.nave.x, NP.nave.y + 17], [NP.nave.x + NP.nave.w - 1, NP.nave.y + 17]]) nave.lights.push({ x, y, w: 4, h: 4, color: '#ffb35c', shape: 'glow', when: 'always', strength: 0.4 })
-  nave.vistas.push({ at: [NP.choir.x, NP.apse.y, NP.choir.w, NP.choir.y + NP.choir.h - NP.apse.y], zoom: 0.6, focus: [AX, NP.apse.y - 4], share: 0.5 })
-  nave.vistas.push({ at: [2, NP.transept.y, 31, NP.nave.y + NP.nave.h - NP.transept.y], zoom: 0.75, focus: [AX, NP.apse.y], share: 0.35 })
-  nave.anchors = { 'primate.altar': [AX, dais + 5], 'primate.choir': [AX + 2, step - 3] }
-  nave.doors.out = [AX, NAVE.door[1]]
-  nave.regions.choir = [NP.choir.x, NP.transept.y, NP.choir.w, NP.transept.h + 2]
+  nave.lights.push({ x: AX, y: altar - 1, w: 9, h: 7, color: '#ffc46b', shape: 'glow', when: 'always', strength: 0.5 })
+  for (const y of aisle) for (const x of [7, 27]) nave.lights.push({ x, y, w: 4, h: 4, color: '#ffb35c', shape: 'glow', when: 'always', strength: 0.4 })
+  // (no vistas: the camera follows the walker as everywhere, the nave's plan too full of them for one to help)
+  nave.anchors = { 'primate.altar': [AX, altar + 1], 'primate.choir': [AX + 6, 26] }
+  nave.doors.out = [AX, HOLY_NAVE.door[1]]
+  // the choir and the crossing before it: where the Primate is first seen
+  nave.regions.choir = [P.choir.x, rail + 1, P.choir.w, P.crossing.y + P.crossing.h - (rail + 1)]
   return nave
 }
 
@@ -299,6 +333,7 @@ export const FINALE_STORY: StepDef[] = [
       say('player', '(You think of the black Shroud, and the dates in Nessa\'s table, and say nothing.)', '（你想起那块黑色的裹尸布，想起奈莎表上的那些日子，什么也没说。）'),
       say('npc.primate', 'I cannot make you believe me. Go down. He will show you.', '我没法让你相信我。下去吧。他会让你看见的。'),
       say('player', '(He kneels behind the altar and lifts a stone out of the floor. A stair goes down into the dark.)', '（他跪到祭坛后面，从地上掀起一块石板。一道楼梯往下通进黑暗里。）'),
+      { status: 'holyhall.nave.slab', add: 'open' },
       say('pip', '...He sounds so tired.', '……他听上去好累。', 'sad'),
       { fact: FIN.primate, value: 1 },
     ],

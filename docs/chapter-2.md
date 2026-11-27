@@ -201,7 +201,7 @@ dragon's nest), `migratePartTwo.ts` (an older save with the Crown home gets the 
 `CHAPTER2_STORY`, the hooks on the pass, Emberfall and offstage), `quest/scenes.ts` (the dragon line reworded: the
 council names the pass and the March; the dragon's fall no longer ends the game), `quest/maps.ts` (`PASS.south`),
 `people/*.ts` (ten new people; Holt goes east; Wren's book), `world.ts`, `overworld.ts`. Art: `tools/src/art/matthias.py`,
-`tools/src/art/chapter2.py` (icons, the post, the channels, the standard).
+`tools/src/art/chapter2.py` (icons, the post, the channels, the standard). The Chapel of the Pillar as the user drew it (2026-11-25): `tools/src/art/scourge-chapel.py` (their sheet and mock-up in `tools/src/art/scourge-chapel/`; its own walls `scchapel_shell`, the side chapels a row deeper; the retable of the Post, the altar, candlesticks, pews, the vestry cupboard, the register's desk, Firstlight's bookshelf, the Rest's rug; the theme `scourge`). The undercroft as the user drew it (2026-11-25): `tools/src/art/scourge-undercroft.py` (their sheet and mock-up in `tools/src/art/scourge-undercroft/`; its own walls `scundercroft_shell`, dark; the channels from the altar's foot down the middle and west three times to drains in the wall, drawn on the floor over their cells; the font of blood, bowl, amphora, the tombstone of the scourge, the grey brother's bones by the drains; the theme `undercroft`).
 
 **Facts and steps**: `world.ch2` (the homecoming `return`), `mq.dragon` (the dragon dead: opens the pass's south way),
 `ch2.march` (`march_descent`), `ch2.camp` (`second_seal` stage 40), `ch2.dusk` (`dusk_battle`, 18:00–20:00 on the

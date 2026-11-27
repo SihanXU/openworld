@@ -209,31 +209,57 @@ export function buildKlaasHouse(): MapBuilder {
   return home('nailgate.klaas', "The Ferryman's House", '渡人的家', 1, 'wood')
 }
 
-/** The sexton's chapel: the altar of the Nail, the nails in their box, and on the stand the Church's chronicle of the Holy Body. */
+/**
+ * The sexton's chapel, as the user drew it (2026-11-25, tools/src/art/nailgate-chapel.py: their sheet and mock-up): the
+ * altar of the Nail on its dais, the crucified man over it and the nail in its case laid on it, a candelabrum either side;
+ * the runner down from it into the way in, between two doorposts bristling with nails; west the
+ * Church's chronicle of the Holy Body open on its desk, the sexton's forge and anvil where he draws the nails, his cot;
+ * east the box of nails, Nessa's tables, the lamp-keepers' chest (sets/ch4.ts), a cot for travellers.
+ */
 export function buildFenChapel(): MapBuilder {
-  const { m, P } = fenHall('healer', 'nailgate.chapel', 'Chapel of the Nail', '圣钉礼拜堂', 'floor_wood', { music: 'temple' })
+  const { m, P } = fenHall('ngchapel', 'nailgate.chapel', 'Chapel of the Nail', '圣钉礼拜堂', 'floor_wood', { music: 'temple' })
+  // its lamplight its own, not the Fens' grey-green dusk: a warm cream barely over the game's grade, and less grey than it,
+  // so that the room's own colours read (the Fens' tint and greying over it made it all green: the user's word, 2026-11-25)
+  m.look = { tint: '#f2e2c4', tintAmount: 0.08, desat: -0.1 }
   const H = P.hut
-  m.fixture('fixture/sacred/altar', H.x + 7, H.y, {
+  const ax = H.x + 6
+  m.scenery('ngchapel_floor', H.x, H.y)
+  m.fixture('fixture/sacred/altar', ax, H.y, {
+    id: 'nailgate.altar',
     name: L('The altar of the Nail', '圣钉祭坛'),
     tags: ['readable'],
     props: { text: 'An altar of black wood. Carved on its face, a man nailed to a tree, his eyes open. Under it: HE ACCEPTED DEATH, AND DEATH DID NOT TAKE HIM.', text_zh: '一座黑木祭坛。正面刻着一个钉在树上的人，眼睛睁着。底下刻着：他接受了死亡，死亡却没有带走他。' },
   })
-  for (const x of [H.x + 5, H.x + 9]) m.fixture('fixture/light/candles', x, H.y, lit)
-  m.fixture('fixture/furniture/bookstand', H.x + 1, H.y + 1, {
+  for (const [x, side] of [[ax - 1, 'w'], [ax + 3, 'e']] as const) m.fixture('fixture/light/candles', x, H.y, { id: `nailgate.candles.${side}`, ...lit })
+  // the doorposts either side of the runner
+  m.scenery('ngchapel_post_w', H.x + 4, H.y + 3)
+  m.scenery('ngchapel_post_e', H.x + 8, H.y + 3)
+  // west: the chronicle on its desk, the sexton's forge and anvil, his cot
+  m.fixture('fixture/furniture/bookstand', H.x + 2, H.y + 1, {
     id: 'nailgate.chronicle',
     name: L('The Chronicle of the Holy Body', '圣尸纪事'),
     tags: ['readable'],
     props: { text: 'A copy of the Church\'s chronicle, sent to every chapel of the Five: what the keepers of the Most Holy Hall see of the First Martyr\'s body, by the day. For three hundred years: "The Body unchanged." This last year: "The Body\'s colour returned." "The Body warm to the hand." "The Body\'s eyelids moved." In the margin someone has written: THE QUICKENING.', text_zh: '教会纪事的抄本，发给五苦的每一座礼拜堂：至圣大殿的守护者逐日记下他们所见的初殉者遗体。三百年来都是：“圣尸如故。”最近这一年：“圣尸复有血色。”“圣尸触手生温。”“圣尸眼睑微动。”页边上有人写了两个字：复苏。' },
   })
-  m.fixture('fixture/furniture/desk', H.x + 11, H.y + 2, { name: L("Nessa's tables", '奈莎的表'), tags: ['readable'], props: { text: 'Sheets of figures weighted down with stones: every sunset since Firstlight, to the minute. Beside the days the sun set early, in red ink, a seal\'s name. Beside some of them, in black, a line from the chronicle.', text_zh: '一张张写满数字的纸，用石头压着：从初原村起的每一次日落，精确到分钟。太阳早落的那些日子旁边，用红墨水写着一道印的名字。其中几天旁边，又用黑墨水抄着纪事里的一句话。' } })
-  m.fixture('fixture/container/chest', H.x + 13, H.y, { name: L('A box of nails', '一箱钉子') })
-  m.fixture('fixture/furniture/bed', H.x, H.y + 5, { name: L("The sexton's cot", '司事的小床') })
-  m.fixture('fixture/furniture/bed', H.x + 13, H.y + 5, { name: L('A cot for travellers', '给过路人的小床') })
-  glow(m, H.x + 7.5, H.y + 1.5, 8, 4, '#ffd27a', 0.35)
+  m.fixture('fixture/craft/forge', H.x + 1, H.y + 2, { id: 'nailgate.forge', name: L("The sexton's forge", '司事的炉子'), statuses: { lit: -1, fireproof: -1 } })
+  m.fixture('fixture/craft/anvil', H.x + 3, H.y + 3, { id: 'nailgate.anvil', name: L("The sexton's anvil", '司事的铁砧') })
+  m.fixture('fixture/furniture/bed', H.x, H.y + 6, { id: 'nailgate.cot.sexton', name: L("The sexton's cot", '司事的小床') })
+  // east: the box of nails, Nessa's tables, a cot for travellers
+  m.fixture('fixture/container/chest', H.x + 12, H.y, { id: 'nailgate.nails', name: L('A box of nails', '一箱钉子') })
+  m.fixture('fixture/furniture/desk', H.x + 11, H.y + 2, { id: 'nailgate.tables', name: L("Nessa's tables", '奈莎的表'), tags: ['readable'], props: { text: 'Sheets of figures weighted down with stones: every sunset since Firstlight, to the minute. Beside the days the sun set early, in red ink, a seal\'s name. Beside some of them, in black, a line from the chronicle.', text_zh: '一张张写满数字的纸，用石头压着：从初原村起的每一次日落，精确到分钟。太阳早落的那些日子旁边，用红墨水写着一道印的名字。其中几天旁边，又用黑墨水抄着纪事里的一句话。' } })
+  m.fixture('fixture/furniture/bed', H.x + 13, H.y + 6, { id: 'nailgate.cot.traveller', name: L('A cot for travellers', '给过路人的小床') })
+  // (over the scene: the floor's own picture would hide a light on it) the altar, the candles' flames, the forge's fire,
+  // the lamps hung on the wall
+  const light = (x: number, y: number, w: number, color: string, strength: number) => m.lights.push({ x: x - 0.5, y: y - 0.5, w, h: w, color, shape: 'glow', when: 'always', strength, aboveScenery: true })
+  light(ax + 1, H.y + 0.4, 6, '#ffd27a', 0.3)
+  for (const x of [ax, ax + 3]) light(x, H.y - 0.55, 2.5, '#ffc46b', 0.45)
+  light(H.x + 1.5, H.y + 2.7, 3, '#ff8a3a', 0.6)
+  for (const x of [7, 11]) light(x, H.y - 1.25, 2.2, '#ffc46b', 0.5)
+  light(H.x + 12.3, H.y + 3.9, 2, '#ffc46b', 0.45)
   m.anchor('barnaby.altar', ...spot(m, H.x + 7, H.y + 2, true))
-  m.anchor('barnaby.bed', ...spot(m, H.x, H.y + 4, true))
+  m.anchor('barnaby.bed', ...spot(m, H.x, H.y + 5, true))
   m.anchor('nessa.desk', ...spot(m, H.x + 11, H.y + 3, true))
-  m.anchor('nessa.cot', ...spot(m, H.x + 13, H.y + 4, true))
+  m.anchor('nessa.cot', ...spot(m, H.x + 13, H.y + 5, true))
   return m
 }
 

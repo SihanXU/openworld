@@ -4,6 +4,7 @@
 import type { Engine, GameDef } from '@openworld/engine'
 import { HUNGER_EVERY, RESIDENT_MEAL, residentSchedule } from '@openworld/modules'
 import { STORY_RULES } from './ford.ts'
+import { WATCH_SHELTER } from './chapter1.ts'
 import { TERRAIN_CHARS, buildOntology } from './ontology.ts'
 import { BASE_RULES } from './rules.ts'
 import { CHAPEL_SIGN } from './village.ts'
@@ -42,6 +43,20 @@ function upgradeSave(eng: Engine): void {
         const now = setOfSlot(set, String(w.prop(e, 'slot')))
         if (now !== set) w.setProp(e, 'set', now)
       }
+    }
+    const { cloak, map } = WATCH_SHELTER
+    // The old garment in a player's inventory keeps its entity rather than reading the chunk again.
+    const carriedCloak = w.get(cloak.id)
+    if (carriedCloak?.type === 'item/clothing/cloak' && w.prop(carriedCloak, 'lookColor') === undefined) {
+      w.setProp(carriedCloak, 'lookColor', cloak.lookColor)
+    }
+    // The old cloak began on the floor at (8, 5). A dormant map could save a move across
+    // that floor as just the changed coordinates. Restore its tile place before the chunk
+    // loader merges it onto the new authored place (inside the hooks).
+    const savedCloak = w.state.chunks?.[map]?.changed?.[cloak.id]
+    const place = savedCloak?.place
+    if (savedCloak && place && typeof place === 'object' && !('on' in place) && ('x' in place || 'y' in place || 'z' in place || 'map' in place)) {
+      savedCloak.place = { on: 'tile', map, x: 8, y: 5, ...place, holder: null }
     }
     // Residents who came to live on the Held Ground before it had a table (docs/logs/0011) kept a day without meals:
     // their day is the residence's as it is now — two meals at the table, their day place by the hearth.

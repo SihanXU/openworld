@@ -5,8 +5,21 @@
 // file a project takes to its assets/na/. A path that begins with `lsw/` or `own/` is the game's
 // own art instead, under its assets/ (`own/`: what the editor imports).
 
-import type { Mood } from '@openworld/engine'
+import type { Dir, Mood } from '@openworld/engine'
 import type { ReliefPalette } from './relief.ts'
+
+/** Contact point of a bed or seat, in pixels relative to the foot of its tile. */
+export interface FurniturePose {
+  pose: 'lie' | 'sit'
+  x: number
+  y: number
+  /** Fraction of the standing frame visible above the bedding or seat. */
+  reveal?: number
+  scale?: number
+  facing?: Dir
+  /** The seat is seen from behind (a pew facing an altar to the north): the one on it is drawn behind it, its back hiding them. */
+  behind?: boolean
+}
 
 /** A rectangle in an image, in pixels, plus the anchor that sits on the entity's tile. */
 export interface SpriteDef {
@@ -56,6 +69,8 @@ export interface PrefabDef {
   tw: number
   th: number
   grid: string[]
+  /** Source image pixels per tile (the world still uses 16 pixels per tile). */
+  pixelsPerTile?: number
   /** Terrain id the solid cells get in the engine (default 'wall'). */
   terrain?: string
   /** Drawn as ground (under whoever stands on it: a pool one wades into), not as a wall in front of them. */
@@ -129,6 +144,24 @@ export interface FxDef {
   beam?: boolean
 }
 
+/** A look a terrain takes at one cell (Catalog.terrainObjectLooks). */
+export interface TerrainLook {
+  terrain: string
+  sprite?: SpriteDef
+  scale?: number
+  /** Other cells' terrains this look holds for: "x,y" → terrain. */
+  when?: Record<string, string>
+}
+
+/** A fixture's look in a theme (Catalog.fixtureThemes). */
+export interface ThemeLook {
+  sprite: SpriteDef
+  lit?: SpriteDef
+  /** its picture facing west */
+  left?: SpriteDef
+  scale?: number
+}
+
 export interface Catalog {
   /** Registered source rectangles assembled once into a single ordinary sprite texture. */
   composites?: Record<string, { width: number; height: number; parts: { sprite: SpriteDef; x: number; y: number }[] }>
@@ -156,6 +189,21 @@ export interface Catalog {
    */
   terrainObjects: Record<string, SpriteDef[]>
   /**
+   * Sprite replacements for named terrain at individual map cells (map → "x,y" → its look). A cell may list several:
+   * the first whose `terrain` is the cell's and whose `when` holds (each "x,y" listed has that terrain now) is drawn;
+   * one with no `sprite` draws nothing there. None holding, the terrain's own object is drawn.
+   */
+  terrainObjectLooks?: Record<string, Record<string, TerrainLook | TerrainLook[]>>
+  /**
+   * A cell's ground drawn as another terrain's (map → "x,y" → its look) while it is `terrain` and `when` holds: a tree
+   * fallen across a river is a way over it (bridge), its trunk drawn standing in the water (the river drawn under it).
+   */
+  groundLooks?: Record<string, Record<string, { terrain: string; as: string; when?: Record<string, string> }>>
+  /** Map-specific gaps in terrain decoration, applied only while the named terrain is present. */
+  terrainObjectGaps?: Record<string, { terrain: string; cells: [number, number][] }>
+  /** Maps whose ground is composed with the detailed snow surface. */
+  snowSurfaceMaps?: readonly string[]
+  /**
    * Terrains whose objects sit a little off the grid, never in rows (tall grass, a wood's trees). A terrain's
    * `<id>_inner` objects, where it has them, are drawn where all four of its sides are the same terrain: a wood's heart,
    * a range's high peaks.
@@ -179,9 +227,21 @@ export interface Catalog {
    * Fixtures by sprite key. `variants`: looks picked per thing (by its id); `ground`: drawn flat
    * on the ground, under whatever stands there; `loose`: set a little off the grid, never in rows.
    */
-  fixtures: Record<string, { base: SpriteDef; open?: SpriteDef; lit?: SpriteDef; variants?: SpriteDef[]; ground?: boolean; loose?: boolean; /** Reuse an authored prop at the world's tile scale. */ scale?: number; /** its picture turned east or west (a fence running north-south) */ across?: SpriteDef }>
+  fixtures: Record<string, { base: SpriteDef; open?: SpriteDef; /** open with nothing in it (`open` is with things in) */ emptied?: SpriteDef; lit?: SpriteDef; variants?: SpriteDef[]; /** each variant's own `lit`, in its order */ litVariants?: SpriteDef[]; ground?: boolean; loose?: boolean; /** Reuse an authored prop at the world's tile scale. */ scale?: number; /** its picture turned east or west (a fence running north-south) */ across?: SpriteDef; /** its picture seen from behind, facing north (a bench south of a table) */ back?: SpriteDef }>
   /** Item sprite keys used by the ontology ('item:sword', …) -> 16x16 icon; a weapon's, how it is seen as it strikes (`swing`). */
   items: Record<string, ItemSpriteDef>
+  /** A prop's picture at its authored placement, with optional frames for open and filled containers. */
+  placedSprites?: Record<string, { map: string; x: number; y: number; sprite: SpriteDef; open?: SpriteDef; filled?: SpriteDef; scale?: number; /** its look while it bears a status (the first it bears, in this order) */ statuses?: Record<string, SpriteDef> }>
+  /**
+   * Fixtures drawn by the theme of the map they stand on (assets/themes.ts): a map's theme is the first rule whose
+   * `match` (a regular expression) matches its id; a theme of several, space separated, is the one the map's id picks.
+   * A fixture with a look for it (by its sprite key) is drawn with it, `lit` while it is lit, `left` while it faces west
+   * (a chair turned to the table on its west); one with none as it is. A theme's looks in a list are sets (a table and
+   * its chairs): the map picks one, the same place in every list, so a room's table and chairs match.
+   */
+  fixtureThemes?: { rules: { match: string; theme: string }[]; looks: Record<string, Record<string, ThemeLook | ThemeLook[]>> }
+  /** Posture contact points keyed by authored entity ID or fixture sprite. */
+  furniturePoses?: Record<string, FurniturePose>
   /** Character looks for NPCs and the player: key -> sheet. */
   characters: Record<string, ActorDef>
   /** NPC role ('farmer', 'guard', …, and 'player') -> character keys that suit it (variety). */

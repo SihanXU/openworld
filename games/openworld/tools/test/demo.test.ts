@@ -10,7 +10,10 @@
 import { describe, expect, it } from 'vitest'
 import { textOf, isPatch, restoreLibrary, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
 import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf, kitsOf } from '@openworld/modules'
-import { ALBERIC_ID, ACTIVE_SKILLS, SET_PIECES, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, PART_TWO, CHAPTER_TWO, CHAPTER_THREE, CHAPTER_FOUR, CHAPTER_FIVE, FINALE, CH3, CH4, CH5, FIN, THE_FIVE, DUST_HEAP, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP, BOSS_ROOMS } from '@openworld-game/content'
+import { ALBERIC_ID, ACTIVE_SKILLS, SET_PIECES, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, PART_TWO, CHAPTER_TWO, CHAPTER_THREE, CHAPTER_FOUR, CHAPTER_FIVE, FINALE, CH3, CH4, CH5, FIN, THE_FIVE, DUST_HEAP, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP, BOSS_ROOMS, WATCH_SHELTER, FORD_CAMP } from '@openworld-game/content'
+import OPENWORLD_GAME from '../../content/src/game.ts'
+import { CATALOG } from '../../client/src/catalog.ts'
+import FERRY_CAMP_JSON from '../../client/src/ferry-camp.json'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { CH1_AT } from '../src/demo/quest/chapter1.ts'
@@ -615,6 +618,32 @@ req('F2a', 'the ferry:the rope from her chest, the winch mended, and she takes y
   expect(far(f)).toBe(true)
 })
 
+req('F2d', "the ferry goes one way: she says she takes one over only the once, and the line's far post, pulled, calls nobody back", ['fixture/ferry/winch'], () => {
+  // before the line is mended, the far post only says it hangs slack
+  const g = fresh()
+  stand(g, ...STAND.farWinch)
+  W(g).fx = []
+  expect(run(g, 'hands', ...AT.farWinch).rule).toBe('ford/far-post')
+  expect(W(g).fx.some((x) => x.t === 'log' && /slack/.test(JSON.stringify((x as { text?: unknown }).text)))).toBe(true)
+  const f = fresh()
+  const camp = W(f).partAt('ford', ...AT.spawn)
+  const side = () => W(f).partAt('ford', W(f).posOf(W(f).player)!.x, W(f).posOf(W(f).player)!.y)
+  W(f).fx = []
+  byFerry(f)
+  expect(far(f)).toBe(true)
+  // she says, as she takes one over, that it is the once
+  expect(W(f).fx.some((x) => x.t === 'say' && x.who === 'npc.hesper' && /only.*once|the once/.test(JSON.stringify((x as { text?: unknown }).text)))).toBe(true)
+  ticks(f, 600, () => !W(f).scene)
+  expect(side()).not.toBe(camp)
+  // mended, the far post's line is taut, and nobody comes
+  stand(f, ...STAND.farWinch)
+  W(f).fx = []
+  expect(run(f, 'hands', ...AT.farWinch).rule).toBe('ford/far-post')
+  expect(W(f).fx.some((x) => x.t === 'log' && /Nothing stirs/.test(JSON.stringify((x as { text?: unknown }).text)))).toBe(true)
+  expect(ticks(f, 600, () => side() === camp)).toBe(false)
+  expect(W(f).posOf(W(f).player)).toMatchObject({ map: 'ford', x: STAND.farWinch[0], y: STAND.farWinch[1] })
+})
+
 req('F2b', 'the dead tree: the axe, three blows from the west, and a walk across', ['item/weapon/blade/axe', 'fixture/nature/dead_tree'], () => {
   const f = fresh()
   byTree(f)
@@ -730,8 +759,9 @@ req('F11', 'a place, not a picture: all that is drawn or in the way is terrain o
   // nor a wall of its own: what blocks is solid terrain or a solid thing
   expect(raw.solid).toBeUndefined()
   for (const type of SEEN) expect([type, !!ofType(f, type)]).toEqual([type, true])
-  // the old axe on the chopping stump, pointed at where the stump is drawn over the grass
-  const stump = ofType(f, 'fixture/nature/stump')!
+  // an axe on a stump with nothing lying on it (the stool by the camp's fire; the old axe still lies in the block she
+  // splits wood on, and is met first there), pointed at where the stump is drawn over the ground
+  const stump = W(f).get(FORD_CAMP.seat.id)!
   const { x, y } = stump.place as { x: number; y: number }
   holdAxe(f)
   stand(f, x - 1, y, 'right')
@@ -755,6 +785,26 @@ req('F11', 'a place, not a picture: all that is drawn or in the way is terrain o
   expect(base.every(([x, y]) => !W(f).walkable('ford', x, y))).toBe(true)
   author(f, () => W(f).destroy(tent))
   expect(base.every(([x, y]) => W(f).walkable('ford', x, y))).toBe(true)
+})
+
+req('F11b', "the ferrykeeper's camp is drawn as the things it holds: every piece of the camp's pictures stands on its own thing's cell, and a group's pieces where its picture has them", ['fixture/furniture/rack/tools', 'fixture/nature/logpile/planks', 'fixture/coil', 'fixture/container/crate', 'fixture/container/barrel', 'fixture/container/sack', 'fixture/furniture/table', 'fixture/nature/plant', 'fixture/nature/stump'], () => {
+  const f = fresh()
+  const { map, ...things } = FORD_CAMP
+  const pieces = (FERRY_CAMP_JSON as unknown as { pieces: Record<string, { group?: { root: string; at: [number, number] } }> }).pieces
+  for (const [name, t] of Object.entries(things)) {
+    // the thing is there, where its picture is drawn
+    const e = W(f).get(t.id)
+    expect([name, e?.place]).toEqual([name, { on: 'tile', map, x: t.x, y: t.y }])
+    // drawn by its piece of the camp's sheet, a picture placed on its cell
+    const placed = CATALOG.placedSprites?.[t.id]
+    expect([name, placed && [placed.map, placed.x, placed.y, placed.sprite.img]]).toEqual([name, [map, t.x, t.y, 'lsw/Fixtures/FerryCamp.png']])
+    // a group's piece stands where the group's picture has it, counted from the group's first thing
+    const group = pieces[name]?.group
+    if (group) {
+      const root = things[group.root as keyof typeof things]
+      expect([name, t.x - root.x, t.y - root.y]).toEqual([name, ...group.at])
+    }
+  }
 })
 
 req('F5', 'the world acts alone: a storm strikes, the slimes come out of their burrow at night, people keep their day', ['weather:storm', 'actor/creature/slime/fire_slime', 'fixture/nature/burrow', 'npc.hesper', 'npc.tobin'], () => {
@@ -2492,7 +2542,7 @@ req('S3', 'each profession\'s forged gear covers the whole body (head, ear, neck
 
 req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the player's own inputs: past the river, the Church's Rest — its people, the Holy See's notice (the pilgrimage as proclaimed), the litany, the priest's oath at the five wounds and the pilgrim's own scallop; five wayside shrines on the road, each lit only by what its suffering asks, laid on it (G) from what the road itself holds (F: a hat, a cord, a loaf in an abandoned cart, a helm, a candle); a penitent on it; the Abbey of the Thorn north of it — the roll, a leaf of Alberic's journal read, the writ of relief never sent; in its crypt the Order's last keeper, fought down with blows, and its seal; the Kneeling Field of those who would not kneel to him; each a stage of the First Seal", [
   'npc.caius', 'npc.ezra', 'npc.maud', 'npc.wynn', 'fixture/sacred/wayshrine/crown', 'fixture/sacred/wayshrine/scourge', 'fixture/sacred/wayshrine/scales', 'fixture/sacred/wayshrine/nails', 'fixture/sacred/wayshrine/lance',
-  'item/document/writ_of_relief', 'item/valuable/order_seal', 'fixture/scarecrow', 'fixture/furniture/bookstand', 'fixture/furniture/cart', 'fixture/sign', 'item/document/letter', 'item/clothing/hat', 'item/light/candle',
+  'item/document/writ_of_relief', 'item/valuable/order_seal', 'fixture/scarecrow', 'fixture/furniture/bookstand', 'fixture/furniture/cart', 'fixture/sign', 'item/document/letter', 'item/clothing/hat', 'item/light/candle', 'fixture/furniture/pew/long',
 ], () => {
   const f = fresh({ main: 'rescue' })
   const w = W(f)
@@ -2578,6 +2628,8 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   // into the chapel of the Five: the litany on its bookstand, read (E)
   expect(door('waystation', 'waystation.chapel')).toBe('waystation.chapel')
   expect(read(things('waystation.chapel', 'fixture/furniture/bookstand')[0])).toContain('极夜便不会归来')
+  // its two long pews either side of the runner, along the nave
+  expect(things('waystation.chapel', 'fixture/furniture/pew/long').length).toBe(2)
   // the oath at the altar of the five wounds; the pilgrim's own scallop
   enter('waystation.chapel', w.map('waystation.chapel')!.regions!.altar, 'pilgrim_oath')
   expect(w.fact('ch1.oath')).toBe(1)
@@ -3226,9 +3278,14 @@ req('T2', 'the general store: Greta keeps it by day, behind her counter; a hand 
   expect(f.eng.controls.count('item/misc/thornmark')).toBe(10 - RECIPE_BY_ID['store/buy/light-torch'].needs[0].count + RECIPE_BY_ID['store/sell/material-herb'].count!)
 })
 
-req('T3', "Firstlight's chapel, Sister Ilse's, behind Astra's altar on the square: Brother Anselm keeps its bookstand, where every skill one learns from a book is sold — the common ones cheaper, a profession's dearer; bought and read, the book teaches its skill", ['npc.anselm', 'fixture/furniture/bookstand'], () => {
+req('T3', "Firstlight's chapel, Sister Ilse's, behind Astra's altar on the square: at its head the five wounds carved round Astra over its stone altar, four cells wide on the nave's middle, that no one walks into; Brother Anselm keeps its bookstand, where every skill one learns from a book is sold — the common ones cheaper, a profession's dearer; bought and read, the book teaches its skill", ['npc.anselm', 'fixture/furniture/bookstand', 'fixture/sacred/altar/stone'], () => {
   const f = fresh()
   const w = W(f)
+  const [altar] = onMap(f, 'fixture/sacred/altar/stone', 'meadow.church')
+  expect(String(altar.props?.text_zh)).toContain('五道圣伤')
+  const at = altar.place as { x: number; y: number }
+  for (const dx of [-1, 0, 1, 2]) expect([dx, w.solidAt('meadow.church', at.x + dx, at.y)?.id]).toEqual([dx, altar.id])
+  expect([w.solidAt('meadow.church', at.x - 2, at.y)?.type, w.solidAt('meadow.church', at.x + 3, at.y)?.type]).toEqual(['fixture/light/candles', 'fixture/light/candles'])
   setHour(f, 2, 10)
   const stand0 = w.posOf(w.get('church.books')!)!
   f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.church', x: stand0.x - 1, y: stand0.y + 1 }))
@@ -3781,6 +3838,150 @@ req('C2', "Chapter 1's errands: Pell's drawings (four, where the grey man was), 
   talkTo(f, 'npc.edda')
   ticks(f, 2)
   expect([qs(f, 'nail'), qs(f, 'band'), c.count('item/tool/smith_hammer')]).toEqual(['done', 'done', 1])
+})
+
+it('Cloudtop: the barrel opens on the southern shelter floor', () => {
+  const f = fresh({ ai: false })
+  const w = W(f)
+  const { map, barrel } = WATCH_SHELTER
+  stand(f, barrel.x - 1, barrel.y, 'right', map)
+
+  expect(w.get(barrel.id)).toMatchObject({
+    type: 'fixture/container/barrel',
+    place: { on: 'tile', map, x: barrel.x, y: barrel.y },
+  })
+  const rendered = () => snapshot(f.eng).entities.find((entity) => entity.id === barrel.id)
+  expect(rendered()?.open).toBe(false)
+  expect(textOf(run(f, 'hands', barrel.x, barrel.y).label!)).toContain('Open')
+  expect(rendered()?.open).toBe(true)
+  // The container panel closes via an interaction on the open barrel.
+  f.eng.interact('interact', w.player.id, { e: barrel.id }, { instrument: null })
+  expect(rendered()?.open).toBe(false)
+})
+
+req('C5h', "Cloudtop's wall hooks hold the watchman's cloak, and only it: taken off and worn, dropped, hung back on them, saved and loaded where it hangs", ['fixture/cloak_hooks'], () => {
+  const f = fresh({ ai: false })
+  const w = W(f)
+  const { cloak, map } = WATCH_SHELTER
+  const controller = f.eng.controls
+  const hooks = () => w.get(cloak.hook)!
+  const garment = () => w.get(cloak.id)!
+  const onHooks = { on: 'inside', holder: cloak.hook }
+  const visible = () => snapshot(f.eng).entities.find((entity) => entity.id === cloak.hook)?.hasContents
+
+  stand(f, cloak.x, cloak.y + 1, 'up', map)
+  controller.select(w.player.slots!.findIndex((slot) => !slot))
+  expect(w.player.held).toBeUndefined()
+  expect(garment().place).toEqual(onHooks)
+  expect(hooks().contents).toEqual([cloak.id])
+  expect(visible()).toBe(true)
+  expect(textOf(run(f, 'hands', cloak.x, cloak.y).label!)).toContain('put on')
+  expect(w.worn(w.player).map((item) => item.id)).toContain(cloak.id)
+  expect(w.seenLook(w.player)).toMatchObject({ parts: { cloak: 'cloak.cloak' }, colors: { 'cloak.1': 'forest' } })
+  expect(visible()).toBeUndefined()
+
+  controller.wear(cloak.id)
+  controller.select(w.player.slotItems!.findIndex((ids) => ids?.includes(cloak.id)))
+  expect(w.player.held).toBe(cloak.id)
+
+  // G on clear ground still makes an ordinary loose item; it does not remount it on the wall.
+  run(f, 'put', cloak.x + 1, cloak.y + 1)
+  expect(garment().place).toMatchObject({ on: 'tile', map, x: cloak.x + 1, y: cloak.y + 1 })
+  expect(w.isLoose(garment())).toBe(true)
+  expect(visible()).toBeUndefined()
+  // A non-cloak item is refused even when the hook is empty.
+  const bread = w.player.contents!.find((id) => w.get(id)?.type === 'item/food/bread')!
+  hold(f, w.get(bread))
+  const tryBread = controller.plan('put', at(cloak.x, cloak.y), 0)
+  if (tryBread) controller.run(tryBread, true)
+  expect(w.player.held).toBe(bread)
+  expect(hooks().contents).toEqual([])
+  controller.select(w.player.slots!.findIndex((slot) => !slot))
+
+  run(f, 'hands', cloak.x + 1, cloak.y + 1)
+  expect(w.player.held).toBe(cloak.id)
+
+  expect(textOf(run(f, 'put', cloak.x, cloak.y).label!)).toContain('back up')
+  expect(garment().place).toEqual(onHooks)
+  expect(w.player.held).toBeUndefined()
+  expect(visible()).toBe(true)
+
+  // Test with a real save, including the map's authored baseline and the library.
+  const save = structuredClone(f.game.save())
+  const { index, chunks } = buildFord()
+  const loaded = Game.load(save, index, onto, restoreLibrary([...BASE_RULES, ...STORY_RULES], save.library, onto))
+  loaded.loadChunk(decodeChunk(chunks.find((chunk) => chunk.map.id === map)!))
+  const next = loaded.engine.controls
+  expect(loaded.engine.world.get(cloak.hook)?.contents).toEqual([cloak.id])
+  const take = next.plan('hands', at(cloak.x, cloak.y), 0)!
+  next.run(take, true)
+  const player = loaded.engine.world.player
+  expect(loaded.engine.world.worn(player).map((item) => item.id)).toContain(cloak.id)
+  next.wear(cloak.id)
+  next.select(player.slotItems!.findIndex((ids) => ids?.includes(cloak.id)))
+  expect(player.held).toBe(cloak.id)
+  const hang = next.plan('put', at(cloak.x, cloak.y), 0)!
+  next.run(hang, true)
+  expect(loaded.engine.world.get(cloak.id)?.place).toEqual(onHooks)
+
+  // The ordinary hand reach still applies.
+  stand(f, 12, 6, 'up', map)
+  const distant = controller.plan('hands', at(cloak.x, cloak.y), 0)
+  expect(isE(distant?.target, cloak.hook)).toBe(false)
+
+  // Taking the cloak must not take off equipment that was already on the player.
+  const other = author(f, () => w.create('item/armor/pauldrons', { on: 'inside', holder: w.player.id }))
+  controller.wear(other.id)
+  stand(f, cloak.x, cloak.y + 1, 'up', map)
+  expect(textOf(run(f, 'hands', cloak.x, cloak.y).label!)).toContain('off the hooks')
+  expect(w.worn(w.player).map((item) => item.id)).toContain(other.id)
+  expect(w.player.held).toBe(cloak.id)
+})
+
+it('Cloudtop: adding the wall hooks does not move a cloak in an older save', () => {
+  const { cloak, map } = WATCH_SHELTER
+  const { index, chunks } = buildFord()
+  const current = chunks.find((chunk) => chunk.map.id === map)!
+  const previous = structuredClone(current)
+  previous.entities = previous.entities.filter((e) => e.id !== cloak.hook)
+  const previousPlace = { on: 'tile' as const, map, x: 8, y: 5 }
+  const oldCloak = previous.entities.find((e) => e.id === cloak.id)!
+  oldCloak.place = previousPlace
+  delete oldCloak.props?.lookColor
+
+  const library = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
+  const old = Game.create(index, onto, library())
+  old.loadChunk(decodeChunk(previous))
+  old.engine.author(() => old.engine.teleport(old.engine.world.player, { map, x: previousPlace.x, y: previousPlace.y + 1 }))
+  const take = old.engine.controls.plan('hands', at(previousPlace.x, previousPlace.y), 0)!
+  old.engine.controls.run(take, true)
+  expect(old.engine.world.player.held).toBe(cloak.id)
+
+  const resumed = Game.load(structuredClone(old.save()), index, onto, library(), OPENWORLD_GAME.upgradeSave)
+  resumed.loadChunk(decodeChunk(current))
+  const w = resumed.engine.world
+  expect(w.get(cloak.id)?.place).toEqual({ on: 'hand', holder: w.player.id })
+  expect(w.get(cloak.id)?.props?.lookColor).toBe(cloak.lookColor)
+  expect(w.get(cloak.hook)?.contents ?? []).toEqual([])
+  expect(snapshot(resumed.engine).entities.find((e) => e.id === cloak.hook)?.hasContents).toBeUndefined()
+  resumed.engine.author(() => resumed.engine.teleport(w.player, { map, x: cloak.x, y: cloak.y + 1 }))
+  const hang = resumed.engine.controls.plan('put', at(cloak.x, cloak.y), 0)!
+  resumed.engine.controls.run(hang, true)
+  expect(w.get(cloak.id)?.place).toEqual({ on: 'inside', holder: cloak.hook })
+
+  const ground = { ...previousPlace, x: 10 }
+  old.engine.author(() => {
+    old.engine.world.place(old.engine.world.get(cloak.id)!, ground)
+    old.engine.controls.sync()
+  })
+  old.loadChunk(decodeChunk(chunks.find((chunk) => chunk.map.id === 'foot')!))
+  old.engine.author(() => old.engine.teleport(old.engine.world.player, { map: 'foot', x: 19, y: 1 }))
+  const away = structuredClone(old.save())
+  expect(away.state.chunks?.[map]?.changed?.[cloak.id]?.place).toEqual({ x: ground.x })
+  const returned = Game.load(away, index, onto, library(), OPENWORLD_GAME.upgradeSave)
+  returned.loadChunk(decodeChunk(current))
+  expect(returned.engine.world.get(cloak.id)?.place).toEqual(ground)
+  expect(returned.engine.world.get(cloak.hook)?.contents ?? []).toEqual([])
 })
 
 req('C5', "Chapter 1 on every map before the knight: Cloudtop's watchman's log (Nessa's errand), the grassland's kneeling herd and Brin's night, the forest's cold camp of the pilgrim before (his scallop to Ilse; his shade after dark), the hollow's carved stones at the barrow mouth", [
@@ -4773,7 +4974,7 @@ req('FIN', "the finale (docs/finale.md), offline: the road down to the Holy City
   'npc.primate', 'npc.warden_w', 'npc.warden_e',
   'actor/creature/sin/astra', 'fixture/sacred/bier', 'fixture/sacred/instrument_niche', 'fixture/sacred/bearer_statue',
   'fixture/sacred/red_channel/dust', 'fixture/sacred/red_channel/black', 'fixture/sacred/red_channel/white', 'fixture/sacred/red_channel/thorn',
-  'fixture/standard', 'fixture/sacred/saint', 'fixture/sacred/rail', 'fixture/sacred/font', 'item/weapon/blade/sword', 'site/place/cathedral',
+  'fixture/standard', 'fixture/sacred/saint', 'fixture/sacred/rail', 'fixture/sacred/font', 'fixture/sacred/stalls', 'fixture/sacred/slab', 'item/weapon/blade/sword', 'site/place/cathedral',
 ], () => {
   const f = fresh()
   const w = W(f)
@@ -4803,8 +5004,11 @@ req('FIN', "the finale (docs/finale.md), offline: the road down to the Holy City
   expect(w.posOf(w.get('npc.severin')!)?.map).toBe('offstage')
   expect(onMap(f, 'fixture/sacred/bearer_statue', 'holyhall').length).toBe(10)
   expect([onMap(f, 'fixture/standard', 'holyhall').length, w.get('site.holyhall')!.type]).toEqual([2, 'site/place/cathedral'])
-  // the nave: the saints at the choir, the rail before it, the font at the door
+  // the nave: the saints by the altar, the rail before it, the choir's stalls, the fonts at the door; the slab behind the
+  // altar still down over the stair
   for (const t of ['fixture/sacred/saint', 'fixture/sacred/rail', 'fixture/sacred/font']) expect([t, onMap(f, t, 'holyhall.nave').length > 0]).toEqual([t, true])
+  expect(onMap(f, 'fixture/sacred/stalls', 'holyhall.nave').length).toBe(4)
+  expect(!!w.get('holyhall.nave.slab')!.statuses?.open).toBe(false)
   // the weapons pilgrims who came this far left at the Holiest's door
   expect(onMap(f, 'item/weapon/blade/sword', 'confluence').length + onMap(f, 'item/weapon/polearm/spear', 'confluence').length).toBe(2)
   go('holyhall', 25, 66)
@@ -4813,6 +5017,8 @@ req('FIN', "the finale (docs/finale.md), offline: the road down to the Holy City
   go('holyhall.nave', 17, 29)
   waitFor('primate')
   expect([w.fact(FIN.primate), q.stage('great_rite')]).toEqual([1, 30])
+  // the slab lifted off the stair down (the scene tells it; rule slab/told)
+  expect(!!w.get('holyhall.nave.slab')!.statuses?.open).toBe(true)
   expect(w.map('holyhall.nave')!.portals.find((p) => p.to === 'confluence')?.opensWhen).toBe(FIN.primate)
   // the Confluence: the channels of the five lands meeting; Severin waiting
   go('confluence', 20, 12)

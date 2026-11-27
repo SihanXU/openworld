@@ -6,9 +6,9 @@
 
 import type { Model, Ornament } from '../oblique.ts'
 import { archNS, backOf, box, drum, gable, octagon, recess, spire, type Solid } from '../shapes.ts'
-import { banner, cross, greatWindow, lancet, rose, sconce, statue, window, type Glass } from '../ornaments.ts'
+import { banner, cross, lancet, rose, statue, window, type Glass } from '../ornaments.ts'
 import { shell, type Dress, type Face } from '../shell.ts'
-import { NAVE } from '../plans.ts'
+import { HOLY_NAVE, NAVE } from '../plans.ts'
 import { S } from '../kit.ts'
 
 /** A model drawn whole as a fixture's picture, its footprint centred on its own cell (MapBuilder.fixture). */
@@ -316,12 +316,12 @@ function sarcophagus(): PropModel {
 }
 
 /** Pilasters along a face: a shaft a little proud of it at each end and every `every` cells, a gilt capital. */
-function pilasters(f: Face, h: number, every = 4): Solid[] {
+function pilasters(f: Face, h: number, every = 4, mat = 'stone'): Solid[] {
   const y = (f.y + 1) * S
   const out: Solid[] = []
   for (let x = f.x0; x <= f.x1 + 1; x += every) {
     const px = Math.min(x, f.x1 + 1) * S
-    out.push(box(px - 3, y - 2, 0, px + 3, y + 3, h - 4, 'stone'), box(px - 4, y - 2, h - 14, px + 4, y + 4, h - 10, 'gold'))
+    out.push(box(px - 3, y - 2, 0, px + 3, y + 3, h - 4, mat), box(px - 4, y - 2, h - 14, px + 4, y + 4, h - 10, 'gold'))
   }
   return out
 }
@@ -337,64 +337,61 @@ export function doorDark(w: number, h: number): (x: number, y: number, z: number
   return (x, y, z) => ({ x, y, z, rows: rowsPic, keys: { n: 'n2', d: 'w3', i: 'i2', w: 'w2' } })
 }
 
-/** The dressing of the nave's faces: by where each run of faces stands in its plan. */
+/** The dressing of the nave's faces: by where each run of faces stands in its plan. Bare stone where the user's pictures
+ * hang (tools/src/art/sunwell-nave.py), no sconces (the user's word of 2026-11-26: the candelabra stand on the floor). */
 function dressNave(f: Face): Dress {
   const p = NAVE.parts
-  const y = (f.y + 1) * S
-  const mid = ((f.x0 + f.x1 + 1) / 2) * S
-  const solids: Solid[] = []
-  const voids: Solid[] = []
-  const orn: Ornament[] = []
-  const lamp = (x: number, z: number) => orn.push(sconce().at(x - 3, y, z))
-  // the apse: its great window, a saint in a niche either side, the string course, the pilasters between
+  // the apse: a pilaster at either end; bare between, where the user's great window and its lancets hang
   if (f.y === p.apse.y - 1) {
-    // (the window high, over the organ's crown, as Reims's and Saint-Denis's over their altars)
     const h = 176
-    voids.push(...recess(mid, y, 92, 64, 78, 6, 'pointed', 2, 3))
-    orn.push(greatWindow(56, 74).at(mid - 28, y - 6, 93))
-    for (const k of [-1, 1]) {
-      voids.push(...recess(mid + k * 54, y, 60, 18, 42, 5, 'pointed'))
-      orn.push(statue(10, 36, true).at(mid + k * 54 - 5, y - 5, 61))
-      lamp(mid + k * 36, 56)
-      lamp(mid + k * 72, 56)
-    }
-    solids.push(box(f.x0 * S, y - 2, 52, (f.x1 + 1) * S, y + 2, 56, 'stone'), box(f.x0 * S, y - 2, 86, (f.x1 + 1) * S, y + 2, 90, 'stone'), ...pilasters(f, h, 3))
-    return { h, solids, voids, ornaments: orn }
+    return { h, solids: pilasters(f, h, f.x1 + 1 - f.x0, 'roseStone') }
   }
-  // the choir's side walls: a tall lancet each, a sconce under it
+  // the choir's side walls: the user's niche with its window hung on each
   if (f.y === p.choir.y - 1) {
     const h = 112
-    voids.push(...recess(mid, y, 30, 16, 64, 4, 'pointed', 2, 2))
-    orn.push(lancet(12, 60, f.x0 < 17 ? 'red' : 'blue', 2).at(mid - 6, y - 4, 31))
-    lamp(mid, 12)
-    return { h, solids: pilasters(f, h, 3), voids, ornaments: orn }
+    return { h, solids: pilasters(f, h, 3, 'roseStone') }
   }
-  // the transept's arms: a rose in each, a pointed doorway under it to the sacristy, sconces either side
+  // the transept's arms: the user's door to the sacristy and its rose over
   if (f.y === p.transept.y - 1) {
     const h = 112
-    voids.push(...recess(mid, y, 52, 50, 50, 4, 'circle', 2, 3))
-    orn.push(rose(21).at(mid - 21, y - 4, 56))
-    voids.push(...recess(mid, y, 0, 26, 42, 6, 'pointed', 2, 3))
-    orn.push(doorDark(18, 36)(mid - 9, y - 6, 0))
-    for (const k of [-1, 1]) lamp(mid + k * 30, 30)
-    return { h, solids: pilasters(f, h, 7), voids, ornaments: orn }
+    return { h, solids: pilasters(f, h, 7, 'roseStone') }
   }
-  // the chapels: a gilt saint in a deep niche, a lancet over, candles at its feet
+  // the chapels: bare, the Most Holy Hall's altar in its own niche before the wall
+  if (f.y === p.chapelW1.y - 1 || f.y === p.chapelW2.y - 1) return { h: 96 }
+  return {}
+}
+
+/** A pilaster of the rose-grey stone at each end of a face, a gilt capital (the Most Holy Hall's corners). */
+function corners(f: Face, h: number): Solid[] {
+  const y = (f.y + 1) * S
+  return [f.x0, f.x1 + 1].flatMap((x) => [box(x * S - 3, y - 2, 0, x * S + 3, y + 3, h - 4, 'roseStone'), box(x * S - 4, y - 2, h - 14, x * S + 4, y + 4, h - 10, 'gold')])
+}
+
+/**
+ * The Most Holy Hall's nave (holyhall.nave), the user's mock-up of 2026-11-25: its own plan (plans.ts HOLY_NAVE) in the
+ * rose-grey stone of the user's sheets, bare where their pictures are laid on it (tools/src/art/holyhall-nave.py): the
+ * apse's great window, its lancets and the blind arcade under them; the sanctuary's bays a lancet each over the arcade.
+ * The arms and the chapels bare for the user's pictures. The walls' tops a broad pale ledge; the choir's own walls, between
+ * it and the arms, low stone walls seen from above, running on to the crossing's piers.
+ */
+function dressHolyNave(f: Face): Dress {
+  const p = HOLY_NAVE.parts
+  if (f.y === p.apse.y - 1) return { h: 160, solids: corners(f, 160) }
+  if (f.y === p.choir.y - 1) return { h: 120, solids: corners(f, 120) }
+  // the transept's arms: bare, the vestry's round window and the side altar's niche the user's pictures
+  if (f.y === p.armW.y - 1) return { h: 108, solids: corners(f, 108) }
+  // the chapels: bare, their niches and altars the user's pictures
   if (f.y === p.chapelW1.y - 1 || f.y === p.chapelW2.y - 1) {
-    const h = 96
-    voids.push(...recess(mid, y, 14, 20, 42, 6, 'pointed', 2, 2))
-    orn.push(statue(12, 36, true).at(mid - 6, y - 6, 15))
-    voids.push(...recess(mid, y, 64, 10, 24, 3, 'pointed'))
-    orn.push(lancet(8, 22, 'violet').at(mid - 4, y - 3, 65))
-    for (const k of [-1, 1]) lamp(mid + k * 16, 22)
-    return { h, voids, ornaments: orn }
+    const h = f.y === p.chapelW1.y - 1 ? 68 : 92
+    return { h, solids: corners(f, h) }
   }
   return {}
 }
 
 export const INSIDE: Record<string, () => Model> = {
-  nave_shell: () => shell({ name: 'nave_shell', plan: NAVE.plan, h: 112, wall: 'stone', dress: dressNave }),
-  nave_pier: () => ({ ...pier(136), name: 'nave_pier' }),
+  nave_shell: () => shell({ name: 'nave_shell', plan: NAVE.plan, h: 112, wall: 'roseStone', trim: 'roseStone', dress: dressNave }),
+  holynave_shell: () => shell({ name: 'holynave_shell', plan: HOLY_NAVE.plan, h: 112, wall: 'roseStone', trim: 'roseStone', rim: 6, dress: dressHolyNave, ledge: (x, y) => (x === 8 || x === 26) && y >= HOLY_NAVE.parts.choir.y && y <= 33 }),
+  nave_pier: () => ({ ...pier(136, 'roseStone'), name: 'nave_pier' }),
   crypt_pillar: () => ({ ...pier(54), name: 'crypt_pillar' }),
   hall_pillar: () => ({ ...pier(110, 'granite'), name: 'hall_pillar' }),
   nave_apse: () => ({ ...apse(20, 9), name: 'nave_apse' }),

@@ -17,6 +17,8 @@ export interface Spot {
   at: Cell
   kind?: 'bones' | 'chest'
   name?: Text
+  /** its own id, where the map draws it by a picture of its own (catalog.ts placedSprites) */
+  id?: string
 }
 
 /** Each map's spots, one for each piece content lays there, in the order of its pieces (gearsets MAIN_SETS). */
@@ -49,7 +51,7 @@ export function laySetPieces(builders: MapBuilder[]): void {
     pieces.forEach((p, i) => {
       const s = spots[i]
       const [x, y] = restingCell(m, s.at[0], s.at[1])
-      m.fixture(s.kind === 'chest' ? CHEST : BONES, x, y, s.name ? { name: s.name } : {}, [{ form: p.type }])
+      m.fixture(s.kind === 'chest' ? CHEST : BONES, x, y, { ...(s.id && { id: s.id }), ...(s.name && { name: s.name }) }, [{ form: p.type }])
     })
   }
 }

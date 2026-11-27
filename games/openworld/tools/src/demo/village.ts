@@ -12,6 +12,7 @@
 // and the flame (docs/chapter-1.md §7), Brother Anselm keeping the bookstand of skill books in it; Joss's house in the
 // south lane and Edda's hut. The shops' offers: content village.ts.
 
+import { Rng } from '@openworld/engine'
 import { CHAPEL_SIGN, FIRSTLIGHT } from '@openworld-game/content'
 import { MapBuilder, rng, type Cell } from './builder.ts'
 import { L } from './kit.ts'
@@ -120,9 +121,18 @@ export function villageLife(m: MapBuilder): void {
   m.yard(33, 24, 12, 9, 'rail', [[33, 27]])
   for (const y of [25, 26, 28, 29, 31]) m.rect(34, y, 10, 1, 'farmland')
   m.fixture('fixture/scarecrow', 39, 28)
-  // the churchyard in its clearing in the south-west: a stone wall, the village's dead, the gate on the path
-  m.yard(2, 25, 8, 6, 'stonewall', [[9, 27]])
+  // the churchyard in its clearing in the south-west: a stone wall, the village's dead in two rows of three, the gate
+  // on the path between them; wildflowers and tufts on the grass above, between and below the rows where they show (each
+  // grave's bed, drawn in the cell west of its stone, left bare, and none hidden behind a headstone). The sixth gravestone
+  // and the small things by their own ids and their own dice, so the ids the map gives after the first five, and what
+  // it strews, stay as saves know them.
+  m.yard(2, 24, 8, 7, 'stonewall', [[9, 27]])
   for (const [x, y] of [[4, 26], [6, 26], [8, 26], [4, 28], [6, 28]] as const) m.fixture('fixture/sacred/gravestone', x, y)
+  m.fixture('fixture/sacred/gravestone', 8, 28, { id: 'village.gravestone' })
+  const dice = new Rng(2526)
+  let small = 0
+  for (let y = 25; y < 30; y += 2) for (let x = 3; x < 9; x++)
+    if ((y === 29 || x % 2 === 1) && m.free(x, y) && grass(m.get(x, y)) && dice.chance(0.6)) m.fixture(dice.chance(0.5) ? 'fixture/nature/flowers' : 'fixture/nature/tuft', x, y, { id: `village.churchyard.${small++}` })
   // the orchard south-east: its trees in rows, the hives under them
   for (let y = 23; y < 35; y += 3) for (let x = 47 + (y % 2); x < 56; x += 3) if (grass(m.get(x, y))) m.set(x, y, 'tree')
   for (const [x, y] of [[49, 29], [52, 32]] as const) m.fixture('fixture/nature/beehive', x, y)
@@ -243,9 +253,10 @@ export function villageInteriors(): Interior[] {
     cook.fixture('fixture/container/barrel', K.x + 10, K.y)
     cook.fixture('fixture/container/sack', K.x + 10, K.y + 2)
     rug(cook, K.x + 3, K.y + 3, 6, 3)
-    // (a long table is three cells wide: its chairs off its ends and along its sides)
+    // (a long table is three cells wide: a chair at each end, a bench along each side)
     cook.fixture('fixture/furniture/table/long', K.x + 6, K.y + 4)
-    for (const [x, y] of [[K.x + 4, K.y + 4], [K.x + 8, K.y + 4], [K.x + 5, K.y + 5], [K.x + 7, K.y + 5], [K.x + 6, K.y + 3]] as const) cook.fixture('fixture/furniture/chair', x, y)
+    for (const x of [K.x + 4, K.x + 8]) cook.fixture('fixture/furniture/chair', x, K.y + 4)
+    for (const y of [K.y + 3, K.y + 5]) cook.fixture('fixture/furniture/bench', K.x + 6, y)
     cook.fixture('fixture/container/chest', K.x + 10, K.y + 7)
     cook.fixture('fixture/nature/plant', K.x, K.y + 5)
     cook.building('decor_firewood', K.x + 1, K.y)
@@ -283,11 +294,12 @@ export function villageInteriors(): Interior[] {
   const { m: elder, P: EL } = flHouse('flelder', 'meadow.elder', "The Elder's House", '村长的家', 'parquet', ['study', 'bedroom'])
   {
     const S = EL.study
-    for (const x of [S.x, S.x + 1, S.x + 2]) elder.fixture('fixture/container/bookshelf', x, S.y)
+    // (a bookshelf stands taller than a man and wider than a cell: a cell between each)
+    for (const x of [S.x, S.x + 2, S.x + 4]) elder.fixture('fixture/container/bookshelf', x, S.y)
     hearth(elder, S.x + 7, S.y)
     rug(elder, S.x + 2, S.y + 3, 5, 3)
     elder.fixture('fixture/furniture/table', S.x + 4, S.y + 4, { name: L("The elder's desk", '村长的书桌'), tags: ['readable'], props: { text: 'The village ledger: who came, who went, who was owed what. The last pages are all about the storm.', text_zh: '村里的账簿，记着谁来了、谁走了、谁欠谁什么。最后几页记的全是那场风暴。' } })
-    elder.fixture('fixture/furniture/chair', S.x + 4, S.y + 5)
+    elder.fixture('fixture/furniture/chair', S.x + 3, S.y + 4)
     elder.fixture('fixture/nature/plant', S.x + 9, S.y + 7)
     elder.fixture('fixture/nature/plant', S.x, S.y + 7)
     elder.building('decor_amphorae', S.x + 9, S.y)
@@ -380,20 +392,33 @@ export function villageInteriors(): Interior[] {
     bed(smithy, R.x + 4, R.y + 1, 'smith.bed', [R.x + 3, R.y + 1])
     smithy.fixture('fixture/container/chest', R.x + 4, R.y + 4)
   }
-  // Sister Ilse's chapel: the nave (the five wounds round Astra, candles, the pews, the bookstand of skill books and
-  // Brother Anselm beside it), and the two cells either side of it where the sister and the brother sleep
+  // Sister Ilse's chapel, as the user drew it (2026-11-24, tools/src/art/firstlight-chapel.py: the mock-ups beside it):
+  // the nave laid on its middle, between two cells, where the five wounds are carved round Astra over the stone altar —
+  // the altar on its steps, candles either side, the carpet from it to the door, three pews either side of the carpet,
+  // the bookstand of skill books in the north-east corner with Brother Anselm beside it, a plant either side of the
+  // door — and the two cells either side where the sister and the brother sleep: hers with a desk and its stool under a
+  // shelf, his with a night table and its lantern
   const { m: church, P: CH } = flHouse('flchurch', 'meadow.church', 'Firstlight Chapel', '初原村礼拜堂', 'floor_stone', ['nave', 'cellW', 'cellE'], { music: 'temple' })
   {
     const N = CH.nave
-    church.fixture('fixture/sacred/altar', N.x + 6, N.y, { name: L('The five wounds', '五道圣伤'), tags: ['readable'], props: { text: 'A figure of Astra, the First Martyr, carved in the stone, and round it his five wounds: the crown, the scourge, the scales, the nails, the lance. The flags before it are worn hollow where the village kneels to give thanks for the flame outside.', text_zh: '石壁上刻着初殉者阿斯特拉的像，四周是五道圣伤：荆棘冠、鞭刑柱、天平、圣钉、圣枪。像前的石板磨出了浅坑，村里人常跪在这里，为门外的圣火谢恩。' } })
-    for (const x of [N.x + 4, N.x + 8]) church.fixture('fixture/light/candles', x, N.y, { statuses: { lit: -1 } })
-    rug(church, N.x + 5, N.y + 1, 3, N.h - 1)
-    for (const y of [N.y + 4, N.y + 6, N.y + 8]) for (const x of [N.x + 2, N.x + 10]) church.fixture('fixture/furniture/bench/log', x, y)
-    church.fixture('fixture/furniture/bookstand', N.x + 11, N.y, { id: 'church.books', name: L('The bookstand', '技能书架'), statuses: { fireproof: -1 } })
-    church.anchor('priest.stand', N.x + 11, N.y + 1)
+    const M = N.x + N.w / 2
+    // (four cells wide, its middle the nave's: its own cell the second of them)
+    church.fixture('fixture/sacred/altar/stone', M - 1, N.y, { name: L('The five wounds', '五道圣伤'), tags: ['readable'], props: { text: 'A figure of Astra, the First Martyr, carved in the stone, and round it his five wounds: the crown, the scourge, the scales, the nails, the lance. The flags before it are worn hollow where the village kneels to give thanks for the flame outside.', text_zh: '石壁上刻着初殉者阿斯特拉的像，四周是五道圣伤：荆棘冠、鞭刑柱、天平、圣钉、圣枪。像前的石板磨出了浅坑，村里人常跪在这里，为门外的圣火谢恩。' } })
+    for (const x of [M - 3, M + 2]) church.fixture('fixture/light/candles', x, N.y, { statuses: { lit: -1 } })
+    // (the runner, deep red with its gold lines, on the nave's middle from under the altar's step to the door)
+    church.scenery('flchapel_runner', M - 2, N.y + 1)
+    for (const y of [N.y + 3, N.y + 5, N.y + 7]) for (const x of [M - 4, M + 3]) church.fixture('fixture/furniture/pew', x, y)
+    church.fixture('fixture/furniture/bookstand', N.x + 12, N.y, { id: 'church.books', name: L('The bookstand', '技能书架'), statuses: { fireproof: -1 } })
+    church.anchor('priest.stand', N.x + 12, N.y + 1)
     for (const x of [N.x + 1, N.x + 12]) church.fixture('fixture/nature/plant', x, N.y + N.h - 2)
-    bed(church, CH.cellW.x, CH.cellW.y + 1, 'bed.1', [CH.cellW.x + 1, CH.cellW.y + 1])
-    bed(church, CH.cellE.x + 2, CH.cellE.y + 1, 'priest.bed', [CH.cellE.x + 1, CH.cellE.y + 1])
+    const W = CH.cellW
+    bed(church, W.x, W.y + 1, 'bed.1', [W.x + 1, W.y + 1])
+    church.fixture('fixture/furniture/table', W.x + 2, W.y, { name: L("Sister Ilse's desk", '伊尔丝修女的书桌') })
+    // (a round stool, the same seen from any side: drawn at the desk's south, facing it)
+    church.fixture('fixture/furniture/chair', W.x + 2, W.y + 1, { name: L('Stool', '凳子'), facing: 'up' })
+    const E = CH.cellE
+    bed(church, E.x + 2, E.y + 1, 'priest.bed', [E.x + 1, E.y + 1])
+    church.fixture('fixture/container/drawers', E.x + 1, E.y, { name: L('Night table', '床头柜') })
   }
   return [
     { door: 'house.cook', map: cook },

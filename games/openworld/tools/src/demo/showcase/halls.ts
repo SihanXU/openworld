@@ -88,7 +88,7 @@ export function libraryHall(p: Place): MapBuilder {
   for (const y of [H.y + 1, H.y + 4, H.y + 7]) for (const x of [4, 7, 10, 19, 22, 25]) m.fixture('fixture/container/bookcase', x, y)
   for (const r of [P.bay1, P.bay2, P.bay3]) {
     m.fixture('fixture/furniture/desk', r.x + 1, r.y)
-    m.fixture('fixture/furniture/chair', r.x + 1, r.y + 1)
+    m.fixture('fixture/furniture/chair', r.x + 2, r.y)
     m.fixture('fixture/light/candles', r.x + 3, r.y, lit)
   }
   for (const r of [P.alcoveW, P.alcoveE]) {
@@ -99,7 +99,8 @@ export function libraryHall(p: Place): MapBuilder {
   m.fixture('fixture/sacred/lectern', 14, H.y + 6)
   for (const x of [12, 17]) m.fixture('fixture/light/candelabrum', x, H.y + 5, lit)
   m.fixture('fixture/furniture/table/long', 15, H.y + 9)
-  for (const x of [14, 15, 16]) for (const y of [H.y + 8, H.y + 10]) m.fixture('fixture/furniture/chair', x, y)
+  for (const x of [13, 17]) m.fixture('fixture/furniture/chair', x, H.y + 9)
+  for (const y of [H.y + 8, H.y + 10]) m.fixture('fixture/furniture/bench', 15, y)
   for (const [x, y] of [[4, H.y + 10], [25, H.y + 10]] as Cell[]) m.fixture('fixture/container/chest', x, y)
   for (const [x, y] of [[3, H.y + 10], [26, H.y + 10]] as Cell[]) m.fixture('fixture/nature/plant', x, y)
   for (const r of [P.bay1, P.bay2, P.bay3]) m.lights.push({ x: r.x + 2, y: r.y + 3, w: 2, h: 3, color: '#ffe08a', shape: 'lancet', when: 'sun', strength: 0.35 })
@@ -113,7 +114,8 @@ export function refectoryHall(p: Place): MapBuilder {
   const H = P.hall
   m.rect(12, H.y, 2, H.h + 1, 'carpet_royal')
   for (const x of [11, 14]) m.fixture('fixture/furniture/table/long', x, P.dais.y + 1)
-  for (const x of [10, 11, 12, 13, 14, 15]) m.fixture('fixture/furniture/chair', x, P.dais.y)
+  // (the high table's bench behind it, facing the hall: a bench to each table)
+  for (const x of [11, 14]) m.fixture('fixture/furniture/bench', x, P.dais.y)
   m.fixture('fixture/sacred/pulpit', P.pulpit.x + 1, P.pulpit.y)
   for (const y of [H.y + 2, H.y + 5, H.y + 8]) for (const x of [5, 9, 16, 20]) {
     m.fixture('fixture/furniture/table/long', x, y)
@@ -138,7 +140,7 @@ export function greatHall(p: Place): MapBuilder {
   m.rect(13, H.y, 2, H.h + 1, 'carpet_royal')
   m.fixture('fixture/furniture/throne', 14, P.dais.y)
   m.fixture('fixture/furniture/table/long', 14, P.dais.y + 2)
-  for (const x of [11, 12, 16, 17]) m.fixture('fixture/furniture/chair', x, P.dais.y + 1)
+  for (const x of [12, 16]) m.fixture('fixture/furniture/chair', x, P.dais.y + 2)
   for (const x of [10, 18]) m.fixture('fixture/standard', x, P.dais.y)
   for (const y of [H.y + 2, H.y + 5, H.y + 8]) for (const x of [8, 19]) {
     m.fixture('fixture/furniture/table/long', x, y)
@@ -175,7 +177,7 @@ export function solarHall(p: Place): MapBuilder {
   m.fixture('fixture/container/bookcase', S.x, S.y)
   m.fixture('fixture/container/bookcase', S.x + 6, S.y)
   m.fixture('fixture/furniture/desk', S.x + 3, S.y + 1)
-  m.fixture('fixture/furniture/chair', S.x + 3, S.y + 2)
+  m.fixture('fixture/furniture/chair', S.x + 2, S.y + 1)
   m.fixture('fixture/furniture/table', S.x + 4, S.y + 4)
   for (const dx of [3, 5]) m.fixture('fixture/furniture/chair', S.x + dx, S.y + 4)
   for (const dx of [5, 6, 7]) m.fixture('fixture/furniture/rack/arms', S.x + dx, S.y + 6)
@@ -198,7 +200,8 @@ export function councilHall(p: Place): MapBuilder {
   for (const x of [9, 16]) m.fixture('fixture/light/candelabrum', x, P.dais.y + 2, lit)
   for (const x of [8, 17]) {
     m.fixture('fixture/furniture/table/long', x, H.y + 2)
-    for (const dx of [-1, 0, 1]) for (const dy of [1, 3]) m.fixture('fixture/furniture/chair', x + dx, H.y + dy)
+    for (const dx of [-2, 2]) m.fixture('fixture/furniture/chair', x + dx, H.y + 2)
+    for (const dy of [1, 3]) m.fixture('fixture/furniture/bench', x, H.y + dy)
   }
   for (const y of [H.y + 6, H.y + 8]) for (const x of [5, 19]) m.fixture('fixture/furniture/pew', x, y)
   for (const [x, y] of [[3, H.y], [21, H.y]] as Cell[]) m.fixture('fixture/container/bookcase', x, y)

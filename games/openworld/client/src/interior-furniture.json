@@ -1,0 +1,344 @@
+{
+ "img": "lsw/Fixtures/InteriorFurniture.png",
+ "scale": 0.25,
+ "pieces": {
+  "bed_plain": {
+   "x": 217,
+   "y": 0,
+   "w": 67,
+   "h": 128,
+   "ax": 33.5,
+   "ay": 124
+  },
+  "bed_rich": {
+   "x": 286,
+   "y": 0,
+   "w": 76,
+   "h": 128,
+   "ax": 38.0,
+   "ay": 124
+  },
+  "long_table_plain": {
+   "x": 334,
+   "y": 220,
+   "w": 192,
+   "h": 60,
+   "ax": 96.0,
+   "ay": 56
+  },
+  "long_table_rich": {
+   "x": 705,
+   "y": 220,
+   "w": 192,
+   "h": 56,
+   "ax": 96.0,
+   "ay": 52
+  },
+  "counter_plain": {
+   "x": 74,
+   "y": 290,
+   "w": 72,
+   "h": 45,
+   "ax": 36.5,
+   "ay": 41
+  },
+  "counter_rich": {
+   "x": 0,
+   "y": 290,
+   "w": 72,
+   "h": 51,
+   "ax": 36.0,
+   "ay": 47
+  },
+  "shelf_plain": {
+   "x": 364,
+   "y": 0,
+   "w": 66,
+   "h": 108,
+   "ax": 33.0,
+   "ay": 104
+  },
+  "shelf_rich": {
+   "x": 656,
+   "y": 0,
+   "w": 66,
+   "h": 101,
+   "ax": 33.0,
+   "ay": 97
+  },
+  "bookshelf_plain": {
+   "x": 0,
+   "y": 0,
+   "w": 108,
+   "h": 136,
+   "ax": 54.5,
+   "ay": 132
+  },
+  "bookshelf_rich": {
+   "x": 110,
+   "y": 0,
+   "w": 105,
+   "h": 136,
+   "ax": 52.5,
+   "ay": 132
+  },
+  "workbench_plain": {
+   "x": 33,
+   "y": 220,
+   "w": 128,
+   "h": 64,
+   "ax": 64.0,
+   "ay": 60
+  },
+  "workbench_rich": {
+   "x": 619,
+   "y": 138,
+   "w": 128,
+   "h": 70,
+   "ax": 64.0,
+   "ay": 66
+  },
+  "fireplace_plain_lit": {
+   "x": 432,
+   "y": 0,
+   "w": 110,
+   "h": 104,
+   "ax": 53.5,
+   "ay": 100
+  },
+  "fireplace_plain": {
+   "x": 544,
+   "y": 0,
+   "w": 110,
+   "h": 104,
+   "ax": 53.5,
+   "ay": 100
+  },
+  "fireplace_rich_lit": {
+   "x": 724,
+   "y": 0,
+   "w": 128,
+   "h": 95,
+   "ax": 64.0,
+   "ay": 91
+  },
+  "fireplace_rich": {
+   "x": 854,
+   "y": 0,
+   "w": 128,
+   "h": 95,
+   "ax": 64.0,
+   "ay": 91
+  },
+  "plant_plain": {
+   "x": 0,
+   "y": 138,
+   "w": 62,
+   "h": 80,
+   "ax": 31.0,
+   "ay": 76
+  },
+  "plant_rich": {
+   "x": 64,
+   "y": 138,
+   "w": 75,
+   "h": 80,
+   "ax": 36.0,
+   "ay": 76
+  },
+  "chair_plain": {
+   "x": 163,
+   "y": 220,
+   "w": 46,
+   "h": 64,
+   "ax": 22.0,
+   "ay": 60
+  },
+  "table_plain": {
+   "x": 528,
+   "y": 220,
+   "w": 78,
+   "h": 58,
+   "ax": 40.0,
+   "ay": 54
+  },
+  "chair_plain_left": {
+   "x": 211,
+   "y": 220,
+   "w": 46,
+   "h": 64,
+   "ax": 23.5,
+   "ay": 60
+  },
+  "chair_rich": {
+   "x": 357,
+   "y": 138,
+   "w": 45,
+   "h": 73,
+   "ax": 25.5,
+   "ay": 69
+  },
+  "table_rich": {
+   "x": 608,
+   "y": 220,
+   "w": 95,
+   "h": 58,
+   "ax": 47.5,
+   "ay": 54
+  },
+  "table_rich_2": {
+   "x": 286,
+   "y": 138,
+   "w": 69,
+   "h": 78,
+   "ax": 35.0,
+   "ay": 74
+  },
+  "chair_plain_2": {
+   "x": 980,
+   "y": 138,
+   "w": 32,
+   "h": 68,
+   "ax": 15.5,
+   "ay": 64
+  },
+  "table_plain_2": {
+   "x": 210,
+   "y": 138,
+   "w": 74,
+   "h": 79,
+   "ax": 37.0,
+   "ay": 75
+  },
+  "chair_plain_2_left": {
+   "x": 0,
+   "y": 220,
+   "w": 31,
+   "h": 68,
+   "ax": 16.0,
+   "ay": 64
+  },
+  "chest": {
+   "x": 259,
+   "y": 220,
+   "w": 73,
+   "h": 61,
+   "ax": 36.5,
+   "ay": 57
+  },
+  "chest_open": {
+   "x": 404,
+   "y": 138,
+   "w": 71,
+   "h": 73,
+   "ax": 35.5,
+   "ay": 69
+  },
+  "chest_empty": {
+   "x": 477,
+   "y": 138,
+   "w": 71,
+   "h": 72,
+   "ax": 35.5,
+   "ay": 68
+  },
+  "crate": {
+   "x": 749,
+   "y": 138,
+   "w": 73,
+   "h": 70,
+   "ax": 36.5,
+   "ay": 66
+  },
+  "crate_open": {
+   "x": 824,
+   "y": 138,
+   "w": 76,
+   "h": 70,
+   "ax": 38.0,
+   "ay": 66
+  },
+  "crate_empty": {
+   "x": 902,
+   "y": 138,
+   "w": 76,
+   "h": 70,
+   "ax": 38.0,
+   "ay": 66
+  },
+  "chair_tavern_2": {
+   "x": 899,
+   "y": 220,
+   "w": 32,
+   "h": 55,
+   "ax": 14.0,
+   "ay": 51
+  },
+  "table_tavern_2": {
+   "x": 550,
+   "y": 138,
+   "w": 67,
+   "h": 71,
+   "ax": 33.5,
+   "ay": 67
+  },
+  "chair_tavern_2_left": {
+   "x": 933,
+   "y": 220,
+   "w": 31,
+   "h": 55,
+   "ax": 17.5,
+   "ay": 51
+  },
+  "chair_tavern": {
+   "x": 148,
+   "y": 290,
+   "w": 33,
+   "h": 44,
+   "ax": 16.5,
+   "ay": 40
+  },
+  "table_tavern": {
+   "x": 141,
+   "y": 138,
+   "w": 67,
+   "h": 80,
+   "ax": 33.5,
+   "ay": 76
+  }
+ },
+ "rules": [
+  {
+   "match": "\\.(inn|tavern|hostel|refectory)(-\\d+)?$",
+   "theme": "tavern"
+  },
+  {
+   "match": "\\.(manorhall|solar|library|counting|teahouse|elder|weighhouse|nave)(-\\d+)?$",
+   "theme": "rich"
+  },
+  {
+   "match": "\\.(poorhouse|farmhouse|cell|cells|barracks|tent|mill|hospital|garrison|smithy|cook|cabin|hut|cellar|guards|woodhouse|warhall)(-\\d+)?$",
+   "theme": "plain"
+  },
+  {
+   "match": "^(altar\\.chalkmere\\-abbey|altar\\.highheath\\-abbey|altar\\.martyrwick\\-abbey|altar\\.the\\-altar\\-beneath|altar\\.whitewood\\-abbey|holy\\.hall|holy\\.myrrhmoor|holy\\.quarter\\-1|holy\\.quarter\\-2|holy\\.quarter\\-3|holy\\.quarter\\-4|holy\\.quarter\\-5|holy\\.quarter\\-6|holy\\.quarter\\-7|holy\\.quarter\\-8|holy\\.sunwell\\-abbey|palefen\\.the\\-pale\\-rider\\-s\\-ossuary|redmarch\\.the\\-war\\-giver\\-s\\-bastion|tithe\\.the\\-black\\-balance)(\\.|$)",
+   "theme": "rich"
+  },
+  {
+   "match": "^(altar\\.bellstone\\-mine|altar\\.bellwick\\-farm|altar\\.candleford\\-ruins|altar\\.choirby\\-shrine|altar\\.choirridge\\-ruins|altar\\.dovecrest\\-tower|altar\\.highcombe\\-cave|altar\\.highcrest|altar\\.highfen\\-cave|altar\\.highmoor|altar\\.lancefield\\-farm|altar\\.lancevale\\-camp|altar\\.lancewood\\-shrine|altar\\.lilywood\\-tower|altar\\.martyrford\\-shrine|altar\\.martyrgate\\-tower|altar\\.martyrheath\\-shrine|altar\\.psalmbrook|altar\\.psalmfield\\-cave|altar\\.saintbrook\\-ruins|altar\\.saintstone\\-ruins|altar\\.whitefen|altar\\.whiteford\\-cave|altar\\.whitegate\\-shrine|altar\\.whiteheath|altar\\.whitevale\\-mine|altar\\.whitewell\\-camp|altar\\.whitewick\\-shrine|frostfang\\.brierbrook\\-shrine|frostfang\\.briercrest\\-cave|frostfang\\.brierfen\\-cave|frostfang\\.briervale\\-ruins|frostfang\\.coldgate\\-ruins|frostfang\\.coldmoor\\-farm|frostfang\\.coldstead\\-farm|frostfang\\.elkcombe|frostfang\\.elkridge\\-mine|frostfang\\.elkwell\\-graves|frostfang\\.frostbarrow\\-camp|frostfang\\.iceheath\\-camp|frostfang\\.northgate\\-mill|frostfang\\.northmoor\\-cave|frostfang\\.pinecombe\\-ruins|frostfang\\.rimeholm|frostfang\\.rimeridge\\-tower|frostfang\\.rimewell|frostfang\\.snowmoor\\-farm|frostfang\\.snowstead\\-tower|frostfang\\.thornby|frostfang\\.thornridge\\-shrine|holy\\.dawnholm|holy\\.dawnvale\\-ruins|holy\\.goldridge\\-shrine|holy\\.goldwood|holy\\.graceby\\-camp|holy\\.gracemoor\\-shrine|holy\\.graceridge\\-camp|holy\\.gracestead\\-farm|holy\\.gracewick\\-farm|holy\\.halocombe\\-farm|holy\\.haloheath|holy\\.incensebarrow\\-farm|holy\\.lambford\\-farm|holy\\.lightwood\\-ruins|holy\\.myrrhfield\\-shrine|holy\\.myrrhheath\\-mill|holy\\.myrrhwood|holy\\.pilgrimbarrow|holy\\.suncrest\\-camp|holy\\.sunstone\\-mill|palefen\\.ashenbrook\\-graves|palefen\\.ashencombe\\-graves|palefen\\.ashengate\\-ruins|palefen\\.ashenridge\\-tower|palefen\\.ashenwood\\-ruins|palefen\\.bonebrook\\-camp|palefen\\.bonecrest\\-ruins|palefen\\.crowgate\\-shrine|palefen\\.crowvale\\-cave|palefen\\.crowwood\\-cave|palefen\\.duskbarrow|palefen\\.duskcombe\\-cave|palefen\\.duskvale\\-mill|palefen\\.fogby\\-shrine|palefen\\.gravewell\\-ruins|palefen\\.mireby|palefen\\.mothbrook\\-ruins|palefen\\.mothgate\\-graves|palefen\\.mothmere|palefen\\.mothwick\\-shrine|palefen\\.mothwood\\-graves|palefen\\.mournwell|palefen\\.nailbrook\\-graves|palefen\\.reedheath\\-tower|palefen\\.reedholm|palefen\\.reedvale|palefen\\.wancrest\\-graves|palefen\\.wanwick\\-camp|redmarch\\.bannerbarrow\\-tower|redmarch\\.bannerwick\\-field|redmarch\\.bloodbarrow\\-keep|redmarch\\.bloodfen\\-tower|redmarch\\.brandby\\-mine|redmarch\\.brandholm\\-farm|redmarch\\.brandmere|redmarch\\.emberwick\\-keep|redmarch\\.flintcrest|redmarch\\.flintford\\-field|redmarch\\.hawkbarrow\\-mine|redmarch\\.hawkholm|redmarch\\.hawkstone\\-cave|redmarch\\.hawkwell\\-keep|redmarch\\.ironbarrow|redmarch\\.ironholm\\-ruins|redmarch\\.lashford\\-field|redmarch\\.lashholm\\-tower|redmarch\\.lashmere\\-cave|redmarch\\.lashstead\\-field|redmarch\\.lashwell\\-keep|redmarch\\.redfield\\-farm|redmarch\\.redholm\\-ruins|redmarch\\.redwell\\-ruins|redmarch\\.rustholm\\-shrine|redmarch\\.rustmere|redmarch\\.rustvale\\-camp|redmarch\\.scarwell\\-camp|redmarch\\.shieldbarrow\\-shrine|redmarch\\.shieldford\\-mine|redmarch\\.shieldwick\\-cave|redmarch\\.shieldwood\\-ruins|redmarch\\.spearholm|redmarch\\.warholm\\-keep|redmarch\\.warwick\\-camp|redmarch\\.warwood\\-camp|tithe\\.barleyford\\-farm|tithe\\.barleyridge\\-farm|tithe\\.chaffwick\\-shrine|tithe\\.copperfield|tithe\\.copperford\\-farm|tithe\\.drymoor|tithe\\.dustbrook\\-camp|tithe\\.dustfen|tithe\\.goldgate\\-ruins|tithe\\.goldmere\\-tower|tithe\\.goldmoor\\-graves|tithe\\.goldstone|tithe\\.goldvale\\-ruins|tithe\\.graincombe\\-cave|tithe\\.graincrest\\-camp|tithe\\.grainwick\\-mill|tithe\\.milletfield\\-shrine|tithe\\.milletford\\-graves|tithe\\.milletwick|tithe\\.milletwood\\-farm|tithe\\.sackwell\\-cave|tithe\\.saltbarrow\\-mill|tithe\\.saltfield\\-camp|tithe\\.saltholm\\-farm|tithe\\.scalecombe|tithe\\.scalemoor\\-mill|tithe\\.titheby\\-ruins|tithe\\.titheford\\-farm|tithe\\.tithevale|tithe\\.tithewick\\-farm|tithe\\.weighbrook\\-mill)(\\.|$)",
+   "theme": "plain"
+  },
+  {
+   "match": "^(holyhall|whiteveil|holiest)(\\.|$)",
+   "theme": "rich"
+  },
+  {
+   "match": "^(summit|foot|ford|meadow|emberfall|abbey|redcamp|charcoal|reedbend|eastroad|waystation|forest|pasture|mill)(\\.|$)",
+   "theme": "plain"
+  },
+  {
+   "match": ".",
+   "theme": "plain rich"
+  }
+ ]
+}

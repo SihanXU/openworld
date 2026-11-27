@@ -1426,7 +1426,7 @@ export interface Vista {
   share?: number
 }
 
-/** A pool of coloured light on a map's floor (MapData.lights). */
+/** An authored patch of coloured light on a map (MapData.lights). */
 export interface LightPool {
   /** Its middle at noon, in cells (fractions allowed). */
   x: number
@@ -1438,6 +1438,8 @@ export interface LightPool {
   color: string
   /** The window's shape it takes: a tall pointed light, a round rose, a soft round glow. */
   shape: 'lancet' | 'rose' | 'glow'
+  /** Draw above the scenery and ambient darkness, as light around a mounted lamp. */
+  aboveScenery?: boolean
   /**
    * When it shows: `sun` while the sun is up, moving with it (east in the morning, west in the evening) and gone at night;
    * `night` after dark (a hearth, a chandelier); `always`.

@@ -233,6 +233,6 @@ Scale, the boon, Severin, `night.shift` 3), `ch3.hunger` (`hunger`), `ch3.granar
 
 **Maps**: `chaffroad` (56×30, cell (45,24), in from the camp's south gate; the mills' rise; `wp.chaffroad`),
 `fairweight` (48×36; the square and its great scale, the street, the lane; `fairweight.weighhouse`, `.guild`, `.granary`,
-`.poorhouse`, `.chapel`, `.miller`, the hovels' rooms), `saltpans` (50×30, salt crust; the Standing; Elsie's mother),
+`.poorhouse`, `.chapel` (the Chapel of the Measure as the user drew it, 2026-11-25: `tools/src/art/fairweight-chapel.py`, their sheet and mock-up in `tools/src/art/fairweight-chapel/`; its own walls `fwchapel_shell`; the altar of the Measure on its platform, the banners of the scale and the sheaf, the niches of the weights and the sheaf, Firstlight's pews, the almoner's room's shelf, sacks, table and bread; the theme `fairweight`), `.miller`, the hovels' rooms), `saltpans` (50×30, salt crust; the Standing; Elsie's mother),
 `blackbalance` (44×32, the mound; the court of dead clerks; `blackbalance.counting`; `wp.blackbalance`; the basilica's
 doors the fog), `scalefloor` (30×30, behind the fog).

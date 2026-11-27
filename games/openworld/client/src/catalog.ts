@@ -14,10 +14,29 @@ import { LSW_FLOOR, LSW_STAIRS, LSW_WALL, type ActorDef, type Catalog, type FxDe
 import { SIN_ACTORS, SIN_FX } from '@openworld/runtime/src/assets/bosses.ts'
 import { SLATE, type ReliefPalette } from '@openworld/runtime/src/assets/relief.ts'
 import FACES from './faces.json'
+import { COURTYARD_BENCH, COURTYARD_PREFABS, COURTYARD_SCALE, COURTYARD_TERRAIN_LOOKS } from './cloudtop-courtyard.ts'
 import BUILDINGS_JSON from './buildings.json'
+import FERRY_CAMP_JSON from './ferry-camp.json'
+import FORD_CROSSING_JSON from './ford-crossing.json'
+import GENERIC_PROPS_JSON from './generic-props.json'
+import INTERIOR_FURNITURE_JSON from './interior-furniture.json'
+import CONTAINERS_JSON from './containers.json'
+import FIRSTLIGHT_CHAPEL_JSON from './firstlight-chapel.json'
+import FIRST_DAWN_JSON from './first-dawn-chapel.json'
+import REST_CHAPEL_JSON from './rest-chapel.json'
+import SCOURGE_CHAPEL_JSON from './scourge-chapel.json'
+import SCOURGE_UNDERCROFT_JSON from './scourge-undercroft.json'
+import FAIRWEIGHT_CHAPEL_JSON from './fairweight-chapel.json'
+import WHITEVEIL_CHURCH_JSON from './whiteveil-church.json'
+import HOLY_NAVE_JSON from './holyhall-nave.json'
+import SUNWELL_NAVE_JSON from './sunwell-nave.json'
+import NAILGATE_CHAPEL_JSON from './nailgate-chapel.json'
+import FIRSTLIGHT_GRAVES_JSON from './firstlight-graves.json'
+import LIGHTS_JSON from './lights.json'
+import OUTDOOR_JSON from './outdoor.json'
 import LOUDNESS from './loudness.json'
 import { CROP_FIXTURES, CROP_ITEMS, FLOWER_FIXTURES, FLOWER_ITEMS } from './crops.ts'
-import { SET_PIECES } from '@openworld-game/content'
+import { FORD_CAMP, SET_PIECES, WATCH_SHELTER } from '@openworld-game/content'
 
 // ---------------------------------------------------------------------------------------------
 // Sheet paths
@@ -63,6 +82,166 @@ function px(img: string, x: number, y: number, w: number, h: number, ax = w / 2,
 function icon(img: string, w: number, h: number): SpriteDef {
   return { img, x: 0, y: 0, w, h, ax: Math.floor(w / 2), ay: h }
 }
+/**
+ * A piece of the ferrykeeper's camp at Vesper Ford (tools/src/art/ferry-camp.py → ferry-camp.json): where it is on the
+ * camp's sheet, and where on it the foot of the cell it stands on is (a group's piece stands off its middle, where the
+ * group's picture has it).
+ */
+function ferryCamp(piece: string): SpriteDef {
+  const p = (FERRY_CAMP_JSON as unknown as { img: string; pieces: Record<string, { x: number; y: number; w: number; h: number; ax: number; ay: number }> }).pieces[piece]
+  if (!p) throw new Error(`no piece ${piece} of the ferry camp`)
+  return px(FERRY_CAMP_JSON.img, p.x, p.y, p.w, p.h, p.ax, p.ay)
+}
+/**
+ * A piece of the crossing at Vesper Ford (tools/src/art/ford-crossing.py → ford-crossing.json): the art packs' own
+ * pieces at four pixels to the game's one (drawn at `FORD_CROSSING_SCALE`), where on the sheet it is and where on it the
+ * foot of the cell it is drawn on is.
+ */
+function fordCrossing(piece: string): SpriteDef {
+  const p = (FORD_CROSSING_JSON as unknown as { pieces: Record<string, { x: number; y: number; w: number; h: number; ax: number; ay: number }> }).pieces[piece]
+  if (!p) throw new Error(`no piece ${piece} of the ford's crossing`)
+  return px(FORD_CROSSING_JSON.img, p.x, p.y, p.w, p.h, p.ax, p.ay)
+}
+const FORD_CROSSING_SCALE = FORD_CROSSING_JSON.scale
+/** The dead tree at the Ford felled: its cell a stump (world.ts AT.deadTree). */
+const FELLED = { '28,10': 'stump' }
+/**
+ * The footbridge at the Ford by its gap (world.ts FOOTBRIDGE: x 31–33 of row 22): whole once all three are laid; else
+ * its two torn ends, and in each cell of the gap a stump of a pile while it is water, a new plank once one is laid.
+ */
+const FORD_FOOTBRIDGE: NonNullable<Catalog['terrainObjectLooks']>[string] = (() => {
+  const look = (terrain: string, piece?: string, when?: Record<string, string>) => ({ terrain, ...(piece && { sprite: fordCrossing(piece), scale: FORD_CROSSING_SCALE }), ...(when && { when }) })
+  const whole = { '31,22': 'bridge', '32,22': 'bridge', '33,22': 'bridge' }
+  return {
+    // the dead tree at the narrows felled (content ford.ts ford/chop-dead-tree): its stump, its trunk across the river
+    '28,10': look('stump', 'stump'),
+    '29,10': look('bridge', 'trunk', FELLED),
+    '26,16': look('bridge', 'pier_w'),
+    '34,16': look('bridge', 'pier_e'),
+    '28,22': [look('bridge', 'bridge', whole), look('bridge', 'end_w')],
+    '34,22': [look('bridge', undefined, whole), look('bridge', 'end_e')],
+    ...Object.fromEntries([31, 32, 33].map((x) => [`${x},22`, [look('water', `pile_${x}`), look('bridge', undefined, whole), look('bridge', `plank_${x}`)]])),
+  }
+})()
+/**
+ * One of the things the whole game has many of (tools/src/art/generic-props.py → generic-props.json): the notice board,
+ * the stone cross, the benches, the art pack's own at four pixels to the game's one (drawn at `GENERIC_PROPS_SCALE`).
+ */
+function genericProp(piece: string): SpriteDef {
+  const p = (GENERIC_PROPS_JSON as unknown as { pieces: Record<string, { x: number; y: number; w: number; h: number; ax: number; ay: number }> }).pieces[piece]
+  if (!p) throw new Error(`no piece ${piece} of the generic props`)
+  return px(GENERIC_PROPS_JSON.img, p.x, p.y, p.w, p.h, p.ax, p.ay)
+}
+const GENERIC_PROPS_SCALE = GENERIC_PROPS_JSON.scale
+/**
+ * The containers and goods (tools/src/art/containers.py → containers.json): the art pack's own at four pixels to the
+ * game's one (drawn at `CONTAINERS_SCALE`).
+ */
+function container(piece: string): SpriteDef {
+  const p = (CONTAINERS_JSON as unknown as { pieces: Record<string, { x: number; y: number; w: number; h: number; ax: number; ay: number }> }).pieces[piece]
+  if (!p) throw new Error(`no piece ${piece} of the containers`)
+  return px(CONTAINERS_JSON.img, p.x, p.y, p.w, p.h, p.ax, p.ay)
+}
+const CONTAINERS_SCALE = CONTAINERS_JSON.scale
+/** A piece of one of the art packs cut by tools/src/art/*.py (`{img, scale, pieces}`), drawn at its `scale`. */
+function packPiece(pack: { img: string }, piece: string): SpriteDef {
+  const p = (pack as unknown as { pieces: Record<string, { x: number; y: number; w: number; h: number; ax: number; ay: number }> }).pieces[piece]
+  if (!p) throw new Error(`no piece ${piece} in ${pack.img}`)
+  return px(pack.img, p.x, p.y, p.w, p.h, p.ax, p.ay)
+}
+const furniture = (piece: string) => packPiece(INTERIOR_FURNITURE_JSON, piece)
+const light = (piece: string) => packPiece(LIGHTS_JSON, piece)
+/** Firstlight's chapel's own things (tools/src/art/firstlight-chapel.py), at the pack's scale. */
+const chapel = (piece: string) => ({ sprite: packPiece(FIRSTLIGHT_CHAPEL_JSON, piece), scale: FIRSTLIGHT_CHAPEL_JSON.scale })
+/** A grave of Firstlight's churchyard in one of its two designs (tools/src/art/firstlight-graves.py), at the pack's scale. */
+const grave = (design: string) => ({ sprite: packPiece(FIRSTLIGHT_GRAVES_JSON, design), scale: FIRSTLIGHT_GRAVES_JSON.scale })
+/** A thing of the outdoors in its two makes (tools/src/art/outdoor.py), each thing one of them, at the pack's scale. */
+const outdoor = (key: string) => ({ base: packPiece(OUTDOOR_JSON, `${key}_1`), variants: [1, 2].map((i) => packPiece(OUTDOOR_JSON, `${key}_${i}`)), scale: OUTDOOR_JSON.scale })
+/**
+ * The furniture of the rooms in two makes, plain and rich, and the tavern's tables and seats (tools/src/art/
+ * interior-furniture.py → interior-furniture.json): the art pack's own at four pixels to the game's one; which a room
+ * has is its map's theme, by the rules the script writes beside them (by what the room is, else the place it is a room
+ * of, else picked by the map). A table and its seats are sets, one to a room; a seat faces the table beside it (its
+ * picture turned west, `left`). The pot's beside them (containers.py), and the lights' (lights.py), lit and cold.
+ */
+const INTERIOR_THEMES: NonNullable<Catalog['fixtureThemes']> = (() => {
+  const j = INTERIOR_FURNITURE_JSON as unknown as { scale: number; rules: { match: string; theme: string }[]; pieces: Record<string, unknown> }
+  const scale = j.scale
+  const looks: NonNullable<Catalog['fixtureThemes']>['looks'] = {}
+  for (const k of ['bed', 'long_table', 'counter', 'shelf', 'bookshelf', 'workbench', 'fireplace', 'plant'])
+    looks[`fixture:${k}`] = Object.fromEntries(['plain', 'rich'].map((t) => [t, { sprite: furniture(`${k}_${t}`), ...(j.pieces[`${k}_${t}_lit`] ? { lit: furniture(`${k}_${t}_lit`) } : {}), scale }]))
+  // a table and its seats, a set to a room (`_2` a theme's second); a seat with a picture turned west faces the table
+  const seat = (n: string) => ({ sprite: furniture(n), ...(j.pieces[`${n}_left`] ? { left: furniture(`${n}_left`) } : {}), scale })
+  const sets = (t: string) => [t, `${t}_2`]
+  looks['fixture:table'] = Object.fromEntries(['plain', 'rich', 'tavern'].map((t) => [t, sets(`table_${t}`).map((n) => ({ sprite: furniture(n), scale }))]))
+  looks['fixture:chair'] = Object.fromEntries(['plain', 'rich', 'tavern'].map((t) => [t, sets(`chair_${t}`).map((n) => seat(j.pieces[n] ? n : `chair_${t}`))]))
+  // the pot, plain or painted (tools/src/art/containers.py)
+  looks['fixture:pot'] = { plain: { sprite: container('pot_plain'), scale: CONTAINERS_SCALE }, rich: { sprite: container('pot_rich'), scale: CONTAINERS_SCALE } }
+  // the lights, cold and lit (tools/src/art/lights.py): the candlestick of a rich room one of its two candelabra
+  for (const k of ['brazier', 'lamppost', 'lantern'])
+    looks[`fixture:${k}`] = Object.fromEntries(['plain', 'rich'].map((t) => [t, { sprite: light(`${k}_${t}`), lit: light(`${k}_${t}_lit`), scale: LIGHTS_JSON.scale }]))
+  const candles = (n: string) => ({ sprite: light(n), lit: light(`${n}_lit`), scale: LIGHTS_JSON.scale })
+  looks['fixture:candles'] = { plain: candles('candles_plain'), rich: [candles('candles_rich'), candles('candelabrum')] }
+  // Firstlight's chapel, as the user drew it (tools/src/art/firstlight-chapel.py): its pews, its candles either side of
+  // the altar, cold and lit, the sister's desk and stool, the brother's night table with its lantern; its beds, its
+  // bookstand and its plants the plain room's
+  looks['fixture:pew'] = { chapel: chapel('pew') }
+  looks['fixture:candles'].chapel = { ...chapel('candles_cold'), lit: chapel('candles').sprite }
+  looks['fixture:table'].chapel = chapel('desk')
+  looks['fixture:chair'].chapel = chapel('stool')
+  looks['fixture:drawers'] = { chapel: chapel('nightstand') }
+  // the poorest rooms of the world, by what the story says of them (Fairweight's poorhouse, its hovels and the miller's
+  // house, the Holy City's poor quarter): the patched cot or the worn one (tools/src/art/nailgate-chapel.py), a room's
+  // beds all of one; the rest of them the plain room's
+  const cot = (piece: string) => ({ sprite: packPiece(NAILGATE_CHAPEL_JSON, piece), scale: NAILGATE_CHAPEL_JSON.scale })
+  looks['fixture:bed'].poor = [cot('poor_cot_patched'), cot('poor_cot_worn')]
+  // the tavern's rest is the plain room's, and so is the chapel's and the poor room's
+  for (const byTheme of Object.values(looks)) if (byTheme.plain) (byTheme.tavern ??= byTheme.plain), (byTheme.chapel ??= byTheme.plain), (byTheme.poor ??= byTheme.plain)
+  // the Scourging House's Chapel of the Pillar, as the user drew it (tools/src/art/scourge-chapel.py): its gilt
+  // candlesticks, lit, its pews with the Order's cloth, the vestry chest a cupboard, Firstlight's bookshelf, the
+  // register open on the copyist's desk
+  const scourge = (piece: string) => ({ sprite: packPiece(SCOURGE_CHAPEL_JSON, piece), scale: SCOURGE_CHAPEL_JSON.scale })
+  looks['fixture:candelabrum'] = { scourge: { ...scourge('candle'), lit: scourge('candle').sprite } }
+  looks['fixture:pew'].scourge = scourge('pew')
+  looks['fixture:chest'] = { scourge: scourge('cupboard') }
+  looks['fixture:bookshelf'].scourge = scourge('bookshelf')
+  looks['fixture:desk'] = { scourge: scourge('desk') }
+  // the Scourging House's undercroft, as the user drew it (tools/src/art/scourge-undercroft.py): the bare stone altar, the
+  // grey brother's bones in his cloak, the tombstone of the scourge, the amphora, the Rest's candelabra, lit; the
+  // channels' cells drawn by the floor's picture
+  const undercroft = (piece: string) => ({ sprite: packPiece(SCOURGE_UNDERCROFT_JSON, piece), scale: SCOURGE_UNDERCROFT_JSON.scale })
+  looks['fixture:altar'] = { undercroft: undercroft('altar') }
+  looks['fixture:bones'] = { undercroft: undercroft('bones') }
+  looks['fixture:tomb'] = { undercroft: undercroft('tomb') }
+  looks['fixture:pot'].undercroft = undercroft('amphora')
+  looks['fixture:candles'].undercroft = { ...undercroft('candelabrum'), lit: undercroft('candelabrum').sprite }
+  looks['fixture:red_channel'] = { undercroft: undercroft('nothing') }
+  // Fairweight's Chapel of the Measure, as the user drew it (tools/src/art/fairweight-chapel.py): Firstlight's pews, the
+  // Rest's candelabra, lit; in the almoner's room the shelf, the sacks and the table with the basket of bread
+  const fairweight = (piece: string) => ({ sprite: packPiece(FAIRWEIGHT_CHAPEL_JSON, piece), scale: FAIRWEIGHT_CHAPEL_JSON.scale })
+  looks['fixture:pew'].fairweight = chapel('pew')
+  looks['fixture:candles'].fairweight = { ...fairweight('candelabrum'), lit: fairweight('candelabrum').sprite }
+  looks['fixture:shelf'].fairweight = fairweight('shelf')
+  looks['fixture:sack'] = { fairweight: fairweight('sacks') }
+  looks['fixture:long_table'].fairweight = fairweight('table')
+  // the Church of Whiteveil (tools/src/art/whiteveil-church.py): the Chapel of the Pillar's pews, as the user asked; the
+  // rest of its things drawn where they stand (placedSprites)
+  looks['fixture:pew'].whiteveil = scourge('pew')
+  // Sunwell Abbey's nave: the Most Holy Hall's things where they fit (tools/src/art/holyhall-nave.py) — its candelabra,
+  // saints, crosses, fonts; its rail, stalls and chapels' altars drawn by their ids (placedSprites)
+  const holy = (piece: string) => ({ sprite: packPiece(HOLY_NAVE_JSON, piece), scale: HOLY_NAVE_JSON.scale })
+  looks['fixture:candelabrum'].sunwell = { ...holy('candelabrum_tall'), lit: holy('candelabrum_tall').sprite }
+  for (const [key, piece] of [['saint', 'statue_c'], ['standing_cross', 'cross_c'], ['font', 'font']] as const) (looks[`fixture:${key}`] ??= {}).sunwell = holy(piece)
+  // and its own (tools/src/art/sunwell-nave.py, the user's sheets of 2026-11-26): the organ, the high altar with its
+  // tabernacle and the pews (the Most Holy Hall's, larger), the lectern, the pulpit, the lilies in their urns; the
+  // reliquary by nothing (the altar's tabernacle its picture)
+  for (const [key, piece] of [['organ', 'organ'], ['high_altar', 'high_altar'], ['pew', 'pew'], ['lectern', 'lectern'], ['pulpit', 'pulpit'], ['plant', 'lilies'], ['reliquary', 'nothing']] as const)
+    (looks[`fixture:${key}`] ??= {}).sunwell = { sprite: packPiece(SUNWELL_NAVE_JSON, piece), scale: SUNWELL_NAVE_JSON.scale }
+  return {
+    rules: [{ match: '^meadow\\.church$', theme: 'chapel' }, { match: '^scourgehouse\\.hall$', theme: 'scourge' }, { match: '^scourgehouse\\.undercroft$', theme: 'undercroft' }, { match: '^fairweight\\.chapel$', theme: 'fairweight' }, { match: '^whiteveil\\.church$', theme: 'whiteveil' }, { match: '^holy\\.sunwell-abbey\\.nave$', theme: 'sunwell' }, { match: '^fairweight\\.(poorhouse|miller|home-\\d+)$', theme: 'poor' }, { match: '^holy\\.quarter-5\\.home-\\d+$', theme: 'poor' }, ...j.rules],
+    looks,
+  }
+})()
 /** UI piece: whole image, anchored top-left. */
 function ui(img: string, w: number, h: number, extra: Partial<SpriteDef> = {}): SpriteDef {
   return { img, x: 0, y: 0, w, h, ax: 0, ay: 0, ...extra }
@@ -157,7 +336,73 @@ function pf(img: string, c: number, r: number, grid: string[], terrain?: string)
  * row, standing on the row's cells and drawn at the row's depth, so whoever stands beside the building is drawn before
  * what is north of them and behind what is south. A map lays a building with `MapBuilder.building`.
  */
-export const BUILDINGS: Record<string, { img: string; w: number; d: number; doors: [number, number][]; ground?: boolean; terrain?: string; shadow?: { x: number; y: number; tw: number; th: number; dx: number; dy: number }; cover?: string[]; slices: { row: number; col: number; tw: number; th: number; x: number; y: number; grid: string[] }[] }> = (BUILDINGS_JSON as unknown as { buildings: never }).buildings
+const generatedBuildings: Record<string, { img: string; w: number; d: number; doors: [number, number][]; ground?: boolean; terrain?: string; pixelsPerTile?: number; shadow?: { x: number; y: number; tw: number; th: number; dx: number; dy: number }; cover?: string[]; slices: { row: number; col: number; tw: number; th: number; x: number; y: number; grid: string[] }[] }> = (BUILDINGS_JSON as unknown as { buildings: never }).buildings
+
+const CLOUDTOP_ART_TILE = 64
+
+/** The imported signs overhang their single solid tile on both sides. */
+function cloudtopBuilding(key: string, image: string, slices?: (typeof generatedBuildings)[string]['slices']): (typeof generatedBuildings)[string] {
+  const base = generatedBuildings[key]
+  return {
+    ...base,
+    img: `lsw/Buildings/${image}.png`,
+    pixelsPerTile: CLOUDTOP_ART_TILE,
+    slices: slices ?? base.slices,
+    ...(base.shadow && { shadow: { ...base.shadow, x: 3 * CLOUDTOP_ART_TILE } }),
+  }
+}
+
+function cloudtopWaymark(key: string, image: string): (typeof generatedBuildings)[string] {
+  return cloudtopBuilding(key, image, [{ row: 0, col: -1, tw: 3, th: 3, x: 0, y: 0, grid: ['   ', '   ', ' # '] }])
+}
+
+const signalTower = generatedBuildings.snow_ruin_tower
+
+export const BUILDINGS: typeof generatedBuildings = {
+  ...generatedBuildings,
+  ct_shelter_waymark: cloudtopWaymark('ct_shelter_waymark', 'cloudtop-sign-se'),
+  ct_waymark_1: cloudtopWaymark('ct_waymark_1', 'cloudtop-sign-sw'),
+  ct_waymark_0: cloudtopWaymark('ct_waymark_0', 'cloudtop-sign-gate'),
+  snow_ruin_arch: cloudtopBuilding('snow_ruin_arch', 'cloudtop-arch'),
+  // Firstlight's chapel's walls with what hangs on them, at 64 pixels a tile (tools/src/art/firstlight-chapel.py): the
+  // strips as the walls were drawn, each with its pictures
+  flchurch_shell: { ...generatedBuildings.flchurch_shell, ...FIRSTLIGHT_CHAPEL_JSON.walls },
+  // the Chapel of the First Dawn's broken walls with their ivy and banner, at 64 pixels a tile (tools/src/art/first-dawn-chapel.py)
+  dhchapel_shell: { ...generatedBuildings.dhchapel_shell, ...FIRST_DAWN_JSON.walls },
+  // the Rest's chapel of the Five's walls with their windows, banners and the five wounds (tools/src/art/rest-chapel.py)
+  wschapel_shell: { ...generatedBuildings.wschapel_shell, ...REST_CHAPEL_JSON.walls },
+  // the Scourging House's Chapel of the Pillar's walls with their windows, banners and the retable of the Post
+  // (tools/src/art/scourge-chapel.py)
+  scchapel_shell: { ...generatedBuildings.scchapel_shell, ...SCOURGE_CHAPEL_JSON.walls },
+  // the Scourging House's undercroft's walls with their niches, torches and the Order's banner
+  // (tools/src/art/scourge-undercroft.py)
+  scundercroft_shell: { ...generatedBuildings.scundercroft_shell, ...SCOURGE_UNDERCROFT_JSON.walls },
+  // Fairweight's Chapel of the Measure's walls with their windows, banners, niches and the bread's tablet
+  // (tools/src/art/fairweight-chapel.py)
+  fwchapel_shell: { ...generatedBuildings.fwchapel_shell, ...FAIRWEIGHT_CHAPEL_JSON.walls },
+  // Nailgate's Chapel of the Nail's walls with their banners, lamps and shelves (tools/src/art/nailgate-chapel.py)
+  ngchapel_shell: { ...generatedBuildings.ngchapel_shell, ...NAILGATE_CHAPEL_JSON.walls },
+  // the Church of Whiteveil's walls with their windows, drapes and banners of the lance (tools/src/art/whiteveil-church.py)
+  wvchurch_shell: { ...generatedBuildings.wvchurch_shell, ...WHITEVEIL_CHURCH_JSON.walls },
+  // the Most Holy Hall's nave's walls with the apse's great window, its lancets and arcade (tools/src/art/holyhall-nave.py)
+  holynave_shell: { ...generatedBuildings.holynave_shell, ...HOLY_NAVE_JSON.walls },
+  // Sunwell Abbey's nave's walls with the great window, the lancets and the roses (tools/src/art/sunwell-nave.py)
+  nave_shell: { ...generatedBuildings.nave_shell, ...SUNWELL_NAVE_JSON.walls },
+  // and its crossing's piers between the choir and the arms, in the same dressed stone
+  nave_pier: { ...generatedBuildings.nave_pier, ...SUNWELL_NAVE_JSON.wallPier },
+  snow_ruin_tower: {
+    ...signalTower,
+    img: 'lsw/Buildings/cloudtop-signal-tower.png',
+    pixelsPerTile: CLOUDTOP_ART_TILE,
+    ...(signalTower.shadow && { shadow: { ...signalTower.shadow, x: 5 * CLOUDTOP_ART_TILE } }),
+    // Keep the rear rows solid while the whole tower draws at the front row's depth.
+    slices: [
+      { row: 0, col: 0, tw: 3, th: 1, x: 0, y: 640, grid: ['###'] },
+      { row: 1, col: 0, tw: 3, th: 1, x: 0, y: 640, grid: ['###'] },
+      { row: 2, col: -1, tw: 5, th: 10, x: 0, y: 0, grid: [...Array<string>(9).fill('     '), ' ### '] },
+    ],
+  },
+}
 
 /** The showcase's furniture pictures (the props' sheet), as the fixtures' sprites: `fixture:<name>`; a tomb's two looks. */
 function propFixtures(): Catalog['fixtures'] {
@@ -178,12 +423,13 @@ function buildingPrefabs(): Record<string, PrefabDef> {
       if (s.grid[s.th - 1].includes('.')) p.front = true
       // a building laid as ground (a bridge's deck, a quay's steps): under whoever stands on it
       if (b.ground) p.ground = true
+      if (b.pixelsPerTile) p.pixelsPerTile = b.pixelsPerTile
       if (b.terrain) p.terrain = b.terrain
       out[`${name}@${s.row}`] = p
     }
   // its shadow, laid as ground (under all that stands), no cell of it changed
   for (const [name, b] of Object.entries(BUILDINGS))
-    if (b.shadow) out[`${name}@shadow`] = { img: b.img, x: b.shadow.x, y: b.shadow.y, tw: b.shadow.tw, th: b.shadow.th, grid: Array(b.shadow.th).fill(' '.repeat(b.shadow.tw)), ground: true }
+    if (b.shadow) out[`${name}@shadow`] = { img: b.img, x: b.shadow.x, y: b.shadow.y, tw: b.shadow.tw, th: b.shadow.th, grid: Array(b.shadow.th).fill(' '.repeat(b.shadow.tw)), ground: true, ...(b.pixelsPerTile && { pixelsPerTile: b.pixelsPerTile }) }
   return out
 }
 
@@ -227,6 +473,186 @@ const LOESS: ReliefPalette = { ...SLATE, outline: 0x3a2f1c, deep: 0x6b5a3a, dark
 const PEAT: ReliefPalette = { ...SLATE, outline: 0x131714, deep: 0x262d28, dark: 0x37403a, mid: 0x4b564d, light: 0x637062, lit: 0x7f8c7c, grass: 0x5f7350, grassShade: 0x3b4a34 }
 
 export const CATALOG: Catalog = {
+  furniturePoses: {
+    'foot.hut~5': { pose: 'sit', x: -5, y: -8, facing: 'right' },
+    [COURTYARD_BENCH.id]: { pose: 'sit', x: -4, y: -9 },
+    'fixture:bed': { pose: 'lie', x: 0, y: -21, reveal: 0.48, scale: 0.8, facing: 'down' },
+    // a pew faces the altar: one sits on it facing north, drawn behind its back, only the head and shoulders over it
+    'fixture:pew': { pose: 'sit', x: 0, y: -10, facing: 'up', behind: true },
+    [WATCH_SHELTER.chair.id]: { pose: 'sit', x: -8, y: -8 },
+  },
+  placedSprites: {
+    'foot.hut~4': { map: 'foot.hut', x: 6, y: 11, sprite: px('lsw/Fixtures/HunterInterior.png', 0, 0, 32, 48, 16, 37) },
+    'foot.hut~5': { map: 'foot.hut', x: 5, y: 11, sprite: px('lsw/Fixtures/HunterInterior.png', 32, 0, 32, 48, 20, 37) },
+    'foot~il': { map: 'foot', x: 9, y: 18, sprite: px('lsw/Fixtures/HunterYard.png', 160, 32, 32, 32, 9, 26) },
+    'foot~2': { map: 'foot', x: 9, y: 15, sprite: px('lsw/Fixtures/HunterYard.png', 160, 0, 48, 32, 16, 31) },
+    'foot~3': { map: 'foot', x: 8, y: 18, sprite: px('lsw/Fixtures/HunterYard.png', 80, 0, 48, 48, 24, 45) },
+    'foot~4': { map: 'foot', x: 4, y: 18, sprite: px('lsw/Fixtures/HunterYard.png', 32, 0, 48, 48, 12, 46) },
+    'foot~7': { map: 'foot', x: 18, y: 22, sprite: px('lsw/Fixtures/FootWayside.png', 64, 32, 32, 32, 15, 30) },
+    'foot~1': { map: 'foot', x: 20, y: 12, sprite: px('lsw/Fixtures/FootShrine.png', 0, 0, 32, 64, 16, 60) },
+    'ch1.drawing.stone': { map: 'foot', x: 22, y: 13, sprite: px('lsw/Fixtures/FootShrine.png', 32, 32, 32, 32, 16, 28) },
+    [COURTYARD_BENCH.id]: { map: 'summit', ...COURTYARD_BENCH, scale: COURTYARD_SCALE },
+    [WATCH_SHELTER.cloak.hook]: {
+      map: WATCH_SHELTER.map, x: WATCH_SHELTER.cloak.x, y: WATCH_SHELTER.cloak.y,
+      sprite: px('lsw/Fixtures/WatchShelter.png', 64, 0, 32, 24, 16, 44),
+      filled: px('lsw/Fixtures/WatchShelter.png', 0, 0, 32, 24, 16, 44),
+    },
+    // the watchman's chair and the table his log lies open on, the shelter's own (the barrel the containers' pack's)
+    [WATCH_SHELTER.chair.id]: { map: WATCH_SHELTER.map, x: WATCH_SHELTER.chair.x, y: WATCH_SHELTER.chair.y, sprite: px('lsw/Fixtures/WatchShelter.png', 96, 0, 32, 24, 24, 23) },
+    [WATCH_SHELTER.log.id]: { map: WATCH_SHELTER.map, x: WATCH_SHELTER.log.x, y: WATCH_SHELTER.log.y, sprite: px('lsw/Fixtures/WatchShelter.png', 32, 0, 32, 24, 19, 23) },
+    // the ferrykeeper's camp at the Ford, each thing drawn with its piece of the camp pack (content ford.ts FORD_CAMP,
+    // named as its piece is; the lantern by the pond with the lantern post's); the fire is drawn cold, and the game's
+    // flame burns over it while it is lit; the old axe is drawn in the block while it lies there
+    ...((): Catalog['placedSprites'] => {
+      const { map, ...things } = FORD_CAMP
+      return Object.fromEntries(Object.entries(things).map(([name, t]) => [t.id, { map, x: t.x, y: t.y, sprite: ferryCamp(name === 'pondLantern' ? 'lantern' : name), ...(name === 'axe' && { scale: 1 }) }]))
+    })(),
+    // the crossing's (tools/src/art/ford-crossing.py): the winch, its line strung to the far post once it is spliced
+    // (snapped, the pack's winch with its frayed ends), the far post, the boat
+    'ford.winch': { map: 'ford', x: 25, y: 15, sprite: fordCrossing('line'), statuses: { broken: fordCrossing('winch') }, scale: FORD_CROSSING_SCALE },
+    'ford.winch.far': { map: 'ford', x: 36, y: 15, sprite: fordCrossing('post'), scale: FORD_CROSSING_SCALE },
+    'ford.raft': { map: 'ford', x: 28, y: 16, sprite: fordCrossing('boat'), scale: FORD_CROSSING_SCALE },
+    'ford.dead_tree': { map: 'ford', x: 28, y: 10, sprite: fordCrossing('dead_tree'), scale: FORD_CROSSING_SCALE },
+    // Nailgate's Chapel of the Nail (tools/src/art/nailgate-chapel.py): every thing of it drawn where it stands, by its id
+    ...((): Catalog['placedSprites'] => {
+      const piece = (name: string) => packPiece(NAILGATE_CHAPEL_JSON, name)
+      const at = (id: string, x: number, y: number, name: string, lit = false) => [id, { map: 'nailgate.chapel', x, y, sprite: piece(name), ...(lit && { statuses: { lit: piece(name) } }), scale: NAILGATE_CHAPEL_JSON.scale }] as const
+      return Object.fromEntries([
+        at('nailgate.altar', 8, 8, 'altar'),
+        at('nailgate.candles.w', 7, 8, 'candelabrum', true),
+        at('nailgate.candles.e', 11, 8, 'candelabrum', true),
+        at('nailgate.chronicle', 4, 9, 'chronicle'),
+        at('nailgate.tables', 13, 10, 'tables'),
+        at('nailgate.forge', 3, 10, 'forge', true),
+        at('nailgate.anvil', 5, 11, 'anvil'),
+        at('nailgate.nails', 14, 8, 'nails'),
+        at('nailgate.lampchest', 14, 12, 'lampchest'),
+        at('nailgate.cot.sexton', 2, 14, 'cot_patched'),
+        at('nailgate.cot.traveller', 15, 14, 'cot_worn'),
+      ])
+    })(),
+    // the Church of Whiteveil (tools/src/art/whiteveil-church.py): every thing of it drawn where it stands, by its id
+    ...((): Catalog['placedSprites'] => {
+      const piece = (name: string) => packPiece(WHITEVEIL_CHURCH_JSON, name)
+      const at = (id: string, x: number, y: number, name: string, lit = false) => [id, { map: 'whiteveil.church', x, y, sprite: piece(name), ...(lit && { statuses: { lit: piece(name) } }), scale: WHITEVEIL_CHURCH_JSON.scale }] as const
+      return Object.fromEntries([
+        at('whiteveil.altar', 14, 11, 'altar'),
+        at('whiteveil.candles.w', 11, 11, 'candelabrum_w', true),
+        at('whiteveil.candles.e', 18, 11, 'candelabrum_e', true),
+        at('whiteveil.statue.w', 9, 14, 'statue'),
+        at('whiteveil.statue.e', 20, 14, 'statue'),
+        at('whiteveil.lilies.1', 8, 14, 'lilies_w'),
+        at('whiteveil.lilies.2', 10, 14, 'lilies_e'),
+        at('whiteveil.lilies.3', 19, 14, 'lilies_w'),
+        at('whiteveil.lilies.4', 21, 14, 'lilies_e'),
+        at('whiteveil.lilies.5', 4, 17, 'lilies_back'),
+        at('whiteveil.lilies.6', 25, 18, 'lilies_w'),
+        at('whiteveil.lilies.7', 27, 18, 'lilies_e'),
+        at('whiteveil.chest', 4, 18, 'chest'),
+        at('whiteveil.candles.chapel', 2, 18, 'candles', true),
+      ])
+    })(),
+    // the Most Holy Hall's nave (tools/src/art/holyhall-nave.py; finale.ts): its things drawn where they stand, by their ids
+    ...((): Catalog['placedSprites'] => {
+      const piece = (name: string) => packPiece(HOLY_NAVE_JSON, name)
+      const at = (id: string, x: number, y: number, name: string, lit = false) => [id, { map: 'holyhall.nave', x, y, sprite: piece(name), ...(lit && { statuses: { lit: piece(name) } }), scale: HOLY_NAVE_JSON.scale }] as const
+      return Object.fromEntries([
+        at('holyhall.nave.altar', 17, 19, 'altar'),
+        at('holyhall.nave.candelabrum.w', 13, 19, 'candelabrum_w', true),
+        at('holyhall.nave.candelabrum.e', 21, 19, 'candelabrum_e', true),
+        at('holyhall.nave.cross.w', 13, 18, 'cross_w'),
+        at('holyhall.nave.cross.e', 21, 18, 'cross_e'),
+        at('holyhall.nave.statue.w', 11, 19, 'statue_w'),
+        at('holyhall.nave.statue.e', 23, 19, 'statue_e'),
+        at('holyhall.nave.candles.w', 14, 12, 'candles_w', true),
+        at('holyhall.nave.candles.e', 20, 12, 'candles_e', true),
+        // the rail's two runs, each one picture on its third cell from the gap; its other cells drawn by nothing
+        ...[0, 1, 2, 3, 4, 5].flatMap((i) => [
+          at(`holyhall.nave.rail.w.${i}`, 15 - i, 21, i === 3 ? 'rail_w' : 'nothing'),
+          at(`holyhall.nave.rail.e.${i}`, 19 + i, 21, i === 3 ? 'rail_e' : 'nothing'),
+        ]),
+        at('holyhall.nave.stalls.w1', 11, 25, 'stalls_w'),
+        at('holyhall.nave.stalls.w2', 11, 28, 'stalls_w'),
+        at('holyhall.nave.stalls.e1', 22, 25, 'stalls_chair'),
+        at('holyhall.nave.stalls.e2', 22, 28, 'stalls_e'),
+        ...[35, 41, 48, 53].flatMap((y, i) => [at(`holyhall.nave.candelabrum.aisle.w${i}`, 7, y, 'candelabrum_aisle_w', true), at(`holyhall.nave.candelabrum.aisle.e${i}`, 27, y, 'candelabrum_aisle_e', true)]),
+        // the pews, a row of them either side of the runner
+        ...[0, 1, 2, 3, 4, 5, 6, 7, 8].flatMap((i) => [at(`holyhall.nave.pew.w${i}`, 13, 39 + 2 * i, 'pew'), at(`holyhall.nave.pew.e${i}`, 21, 39 + 2 * i, 'pew')]),
+        at('holyhall.nave.font.w', 13, 58, 'font'),
+        at('holyhall.nave.font.e', 21, 58, 'font'),
+        // the west arm, the vestry: its table; the Curia's pieces in its box, stand, wardrobe, rack and chest (sets/fin.ts)
+        at('holyhall.nave.table', 5, 27, 'table'),
+        at('holyhall.nave.vestry.box', 3, 28, 'box'),
+        at('holyhall.nave.vestry.stand', 2, 27, 'stand'),
+        at('holyhall.nave.vestry.wardrobe', 3, 25, 'wardrobe'),
+        at('holyhall.nave.vestry.rack', 6, 25, 'rack'),
+        at('holyhall.nave.vestry.chest', 6, 28, 'chest'),
+        // the east arm: the side altar, its lilies, its kneeler
+        at('holyhall.nave.altar.side', 30, 25, 'side_altar'),
+        at('holyhall.nave.lilies.w', 27, 25, 'lilies_w'),
+        at('holyhall.nave.lilies.e', 32, 25, 'lilies_e'),
+        at('holyhall.nave.kneeler.side', 30, 27, 'kneeler'),
+        // the chapels' altars in their niches and their kneelers; the Second's reliquaries in the lower two
+        ...([['w1', 5, 35, 'swords'], ['w2', 5, 45, 'monstrance'], ['e1', 29, 35, 'lily'], ['e2', 29, 45, 'virgin']] as const).flatMap(([id, x, y, k]) => [
+          at(`holyhall.nave.chapel.${id}`, x, y, `chapel_${k}`),
+          at(`holyhall.nave.kneeler.${id}`, x, y + 1, `kneel_${k}`),
+        ]),
+        at('holyhall.nave.reliquary.w', 4, 47, 'reliquary'),
+        at('holyhall.nave.reliquary.e', 30, 47, 'reliquary'),
+      ])
+    })(),
+    // Sunwell Abbey's nave (catalog.ts its theme `sunwell`): its rail's runs, its tombs, the candelabra down the nave, the
+    // larger ones (tools/src/art/sunwell-nave.py); its stalls and its chapels' altars and kneelers (the Most Holy Hall's,
+    // the saint in her niche, as the user asked)
+    ...((): Catalog['placedSprites'] => {
+      const N = 'holy.sunwell-abbey.nave'
+      const piece = (name: string) => packPiece(HOLY_NAVE_JSON, name)
+      const at = (id: string, x: number, y: number, name: string) => [`${N}.${id}`, { map: N, x, y, sprite: piece(name), scale: HOLY_NAVE_JSON.scale }] as const
+      const own = (id: string, x: number, y: number, name: string) => [`${N}.${id}`, { map: N, x, y, sprite: packPiece(SUNWELL_NAVE_JSON, name), scale: SUNWELL_NAVE_JSON.scale }] as const
+      return Object.fromEntries([
+        ...[9, 10, 11, 12, 13, 14].map((x) => own(`rail.${x}`, x, 23, x === 11 ? 'rail_w' : 'nothing')),
+        ...[20, 21, 22, 23, 24, 25].map((x) => own(`rail.${x}`, x, 23, x === 23 ? 'rail_e' : 'nothing')),
+        at('stalls.w', 11, 22, 'stalls_w'),
+        at('stalls.e', 22, 22, 'stalls_chair'),
+        ...([['w1', 5, 39], ['w2', 5, 48], ['e1', 29, 39], ['e2', 29, 48]] as const).flatMap(([id, x, y]) => [at(`chapel.${id}`, x, y, 'chapel_virgin'), at(`kneeler.${id}`, x, y + 1, 'kneel_virgin')]),
+        ...([['w', 5], ['e', 29]] as const).flatMap(([side, cx]) => [1, 2, 3].map((i) => own(`tomb.${side}${i}`, cx + (i - 2) * 2, 30, 'tomb'))),
+        ...([['w', 8], ['e', 26]] as const).flatMap(([side, x]) => [37, 46, 55].map((y, i) => own(`candelabrum.aisle.${side}${i}`, x, y, 'candelabrum'))),
+      ])
+    })(),
+    // Fairweight's Chapel of the Measure (tools/src/art/fairweight-chapel.py): the altar of the Measure
+    'fairweight.altar': { map: 'fairweight.chapel', x: 7, y: 9, sprite: packPiece(FAIRWEIGHT_CHAPEL_JSON, 'altar'), scale: FAIRWEIGHT_CHAPEL_JSON.scale },
+    // the Scourging House's Chapel of the Pillar (tools/src/art/scourge-chapel.py): the altar of the Post
+    'scourgehouse.altar': { map: 'scourgehouse.hall', x: 14, y: 12, sprite: packPiece(SCOURGE_CHAPEL_JSON, 'altar'), scale: SCOURGE_CHAPEL_JSON.scale },
+    // the Rest's chapel of the Five (tools/src/art/rest-chapel.py): the altar of the five wounds, the candelabra lit
+    ...((): Catalog['placedSprites'] => {
+      const rest = (piece: string) => packPiece(REST_CHAPEL_JSON, piece)
+      const lit = { sprite: rest('candelabrum'), statuses: { lit: rest('candelabrum') }, scale: REST_CHAPEL_JSON.scale }
+      return {
+        'waystation.altar': { map: 'waystation.chapel', x: 7, y: 9, sprite: rest('altar'), scale: REST_CHAPEL_JSON.scale },
+        'waystation.chapel~1': { map: 'waystation.chapel', x: 4, y: 9, ...lit },
+        'waystation.chapel~2': { map: 'waystation.chapel', x: 10, y: 9, ...lit },
+        // the east pew facing the west one across the aisle
+        'waystation.pew.e': { map: 'waystation.chapel', x: 9, y: 15, sprite: rest('pew_long_e'), scale: REST_CHAPEL_JSON.scale },
+        // the priest's night table, Firstlight's sister's
+        'waystation.nightstand': { map: 'waystation.chapel', x: 17, y: 10, sprite: packPiece(FIRSTLIGHT_CHAPEL_JSON, 'nightstand'), scale: FIRSTLIGHT_CHAPEL_JSON.scale },
+      }
+    })(),
+    // the Chapel of the First Dawn's things (tools/src/art/first-dawn-chapel.py): its first hearth cold, its old pews
+    // broken as the roof left them, the fallen stone
+    ...((): Catalog['placedSprites'] => {
+      const at = (id: string, x: number, y: number, piece: string) => [id, { map: 'chapel', x, y, sprite: packPiece(FIRST_DAWN_JSON, piece), scale: FIRST_DAWN_JSON.scale }] as const
+      return Object.fromEntries([
+        at('chapel~1', 8, 8, 'hearth'), at('chapel~2', 6, 8, 'candle_a'), at('chapel~3', 10, 8, 'candle_b'),
+        at('chapel~4', 5, 12, 'pew_broken'), at('chapel~5', 5, 15, 'pew_overgrown'), at('chapel~6', 11, 12, 'pew_broken'),
+        at('chapel~7', 12, 15, 'r_block'),
+      ])
+    })(),
+    // the first three maps keep their own pictures where the generic props would change them: the Ford's signpost east
+    'ford~p': { map: 'ford', x: 40, y: 14, sprite: t(ELEM, 0, 2) },
+    // Firstlight's churchyard as the user drew its graves (tools/src/demo/village.ts): the first row's gravestones a
+    // headstone with a cross over a bed of earth, the second's a pointed one between pinnacles over grass
+    ...Object.fromEntries(([['meadow~g', 4, 26, 'cross'], ['meadow~h', 6, 26, 'cross'], ['meadow~i', 8, 26, 'cross'], ['meadow~j', 4, 28, 'gothic'], ['meadow~k', 6, 28, 'gothic'], ['village.gravestone', 8, 28, 'gothic']] as const).map(([id, x, y, design]) => [id, { map: 'meadow', x, y, ...grave(design) }])),
+  },
   composites: {
     'composite:garden_pavilion': (() => {
       const b = BUILDINGS.manor_gazebo
@@ -389,6 +815,26 @@ export const CATALOG: Catalog = {
   // what grows or stands loose sits a few pixels off the grid: tall grass, flowers, bushes, and the world map's woods,
   // mountains, hills, reeds, mesas and snowy pines, so none of them stands in rows
   looseObjects: ['drygrass', 'flowers', 'bush', 'ow_forest', 'ow_mountain', 'ow_hills', 'ow_deadwood', 'ow_marsh', 'ow_badlands', 'ow_snow'],
+  snowSurfaceMaps: ['summit'],
+  terrainObjectLooks: {
+    summit: COURTYARD_TERRAIN_LOOKS,
+    // the Ford's piers and its footbridge, drawn from the crossing's art packs as the gap stands
+    ford: FORD_FOOTBRIDGE,
+    // Presentation only: original flower terrain and harvesting stay at each cell.
+    foot: Object.fromEntries(Array.from({ length: 14 * 10 }, (_, i) => {
+      const x = 14 + i % 14, y = 9 + Math.floor(i / 14)
+      return [`${x},${y}`, { terrain: 'flowers', sprite: px('lsw/Fixtures/FootShrine.png', 80 + ((x + y * 2) % 3) * 16, 0, 16, 16, 8, 15) }]
+    })),
+  },
+  // the river under the dead tree's trunk once it is felled across it (the trunk is drawn over: terrainObjectLooks.ford)
+  groundLooks: {
+    ford: Object.fromEntries([29, 30, 31, 32, 33, 34].map((x) => [`${x},10`, { terrain: 'bridge', as: 'water', when: FELLED }])),
+  },
+  // a room's furniture by its map's theme (tools/src/art/interior-furniture.py)
+  fixtureThemes: INTERIOR_THEMES,
+  terrainObjectGaps: {
+    summit: { terrain: 'drygrass', cells: [[5, 9], [8, 10], [6, 12]] },
+  },
   terrainObjects: {
     tree: [
       px(NATURE, 0, 0, 32, 32, 16, 31), // round green, 2x2
@@ -522,6 +968,61 @@ export const CATALOG: Catalog = {
     ...fencePieces(),
     // the project's own buildings (tools/src/art/arch): a strip a footprint row, `<building>@<row>` (BUILDINGS)
     ...buildingPrefabs(),
+    ...COURTYARD_PREFABS,
+    // Firstlight's chapel's runner, deep red with its gold lines, laid as ground from the altar to the door
+    // (tools/src/art/firstlight-chapel.py; village.ts lays it)
+    // the Chapel of the First Dawn's floor, laid as ground over its whole map (tools/src/art/first-dawn-chapel.py; vigil.ts lays it)
+    // its bell's beam and rope in the tower (the same; vigil.ts hangs it where the old rope was)
+    dawnchapel_bell: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, base: th - 1, grid: Array<string>(th).fill(' '.repeat(tw)) }))(FIRST_DAWN_JSON.bell),
+    // the Rest's chapel of the Five (tools/src/art/rest-chapel.py; pilgrimage.ts lays them): its runner and the priest's
+    // rug as ground, the wood in his cell's corner standing on the cell it fills
+    // the Scourging House's Chapel of the Pillar (tools/src/art/scourge-chapel.py; chapter2.ts lays them): the rugs under
+    // the desk and the cupboard, the stair down in its stone frame, the steps up to the raised apse
+    ...Object.fromEntries((['rug', 'rug_small', 'stair', 'steps'] as const).map((k) => [`scchapel_${k}`, (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, grid: Array<string>(th).fill(' '.repeat(tw)), ground: true }))(SCOURGE_CHAPEL_JSON[k])])),
+    // the Scourging House's undercroft (tools/src/art/scourge-undercroft.py; chapter2.ts lays them): its floor with the red
+    // channels, the drains, the blood and the bowl; the font of blood standing on its cell
+    scundercroft_floor: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, grid: Array<string>(th).fill(' '.repeat(tw)), ground: true }))(SCOURGE_UNDERCROFT_JSON.floor),
+    scundercroft_font: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, base: 1, grid: ['  ', '  ', ' #'] }))(SCOURGE_UNDERCROFT_JSON.font),
+    // Nailgate's Chapel of the Nail (tools/src/art/nailgate-chapel.py; chapter4.ts lays them): its dais and runner, and the
+    // doorposts bristling with nails, each standing on its cell
+    ngchapel_floor: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, grid: Array<string>(th).fill(' '.repeat(tw)), ground: true }))(NAILGATE_CHAPEL_JSON.floor),
+    ...Object.fromEntries(([['w', '# '], ['e', ' #']] as const).map(([k, last]) => [`ngchapel_post_${k}`, (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, base: 1, grid: ['  ', '  ', last] }))(NAILGATE_CHAPEL_JSON.posts[k])])),
+    // Fairweight's Chapel of the Measure (tools/src/art/fairweight-chapel.py; chapter3.ts lays it): the altar's platform
+    // the Church of Whiteveil (tools/src/art/whiteveil-church.py; chapter5.ts lays them): the green stone and the slab before
+    // the altar; the arch over the stair down, standing on the stair's row, its piers solid either side of the way down
+    wvchurch_floor: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, grid: Array<string>(th).fill(' '.repeat(tw)), ground: true }))(WHITEVEIL_CHURCH_JSON.floor),
+    // the Most Holy Hall's nave (tools/src/art/holyhall-nave.py; finale.ts lays it): its floors, steps, runner and the slab, over the whole map
+    holynave_floor: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, grid: Array<string>(th).fill(' '.repeat(tw)), ground: true }))(HOLY_NAVE_JSON.floor),
+    // its piers, each solid on the middle of its picture's bottom row
+    holynave_pier: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, base: th - 1, grid: [...Array<string>(th - 1).fill('   '), ' # '] }))(HOLY_NAVE_JSON.pier),
+    // Sunwell Abbey's nave (tools/src/art/sunwell-nave.py; abbey.ts lays them): its floor over the whole map, the labyrinth
+    // squared by its spandrels, the choir's steps, the slab under the high altar, the stair down, as ground; its piers,
+    // each solid on the middle of its bottom row
+    ...Object.fromEntries((['floor', 'labyrinth', 'steps', 'slab', 'stair'] as const).map((k) => [`sunnave_${k}`, (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, grid: Array<string>(th).fill(' '.repeat(tw)), ground: true }))(SUNWELL_NAVE_JSON.ground[k])])),
+    sunnave_pier: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, base: th - 1, grid: [...Array<string>(th - 1).fill('   '), ' # '] }))(SUNWELL_NAVE_JSON.pier),
+    wvchurch_stair: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, base: 3, grid: ['   ', '   ', '   ', '# #'] }))(WHITEVEIL_CHURCH_JSON.stair),
+    fwchapel_steps: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, grid: Array<string>(th).fill(' '.repeat(tw)), ground: true }))(FAIRWEIGHT_CHAPEL_JSON.steps),
+    wschapel_runner: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, grid: Array<string>(th).fill(' '.repeat(tw)), ground: true }))(REST_CHAPEL_JSON.runner),
+    wschapel_rug: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, grid: Array<string>(th).fill(' '.repeat(tw)), ground: true }))(REST_CHAPEL_JSON.rug),
+    wschapel_firewood: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, base: 1, grid: ['  ', '# '] }))(REST_CHAPEL_JSON.firewood),
+    dawnchapel_floor: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, grid: Array<string>(th).fill(' '.repeat(tw)), ground: true }))(FIRST_DAWN_JSON.floor),
+    flchapel_runner: (({ img, tw, th, pixelsPerTile }) => ({ img, x: 0, y: 0, tw, th, pixelsPerTile, grid: Array<string>(th).fill(' '.repeat(tw)), ground: true }))(FIRSTLIGHT_CHAPEL_JSON.runner),
+    // Decorative original flower variants, with no collision or new interaction.
+    foot_court_flower_0: pf(NATURE, 0, 11, [' ']),
+    foot_court_flower_1: pf(NATURE, 1, 11, [' ']),
+    foot_court_flower_2: pf(NATURE, 3, 11, [' ']),
+    foot_court_flower_3: pf(DETAIL, 5, 2, [' ']),
+    foot_court_flower_4: pf(NATURE, 4, 10, [' ']),
+    foot_hunter_woodshed: { img: 'lsw/Fixtures/HunterYard.png', x: 0, y: 0, tw: 2, th: 3, grid: ['  ', '  ', '##'], base: 2 },
+    foot_hunter_ribs: { img: 'lsw/Fixtures/HunterYard.png', x: 0, y: 64, tw: 2, th: 1, grid: ['  '], ground: true },
+    foot_hunter_hide: { img: 'lsw/Fixtures/HunterYard.png', x: 32, y: 48, tw: 3, th: 1, grid: ['   '], ground: true },
+    foot_hunter_chips: { img: 'lsw/Fixtures/HunterYard.png', x: 80, y: 48, tw: 3, th: 1, grid: ['   '], ground: true },
+    foot_hunter_glove_stone: { img: 'lsw/Fixtures/HunterYard.png', x: 0, y: 48, tw: 2, th: 1, grid: ['  '], ground: true },
+    foot_hunter_broken_rail: { img: 'lsw/Fixtures/HunterYard.png', x: 32, y: 64, tw: 2, th: 1, grid: ['  '], ground: true },
+    // the wayside cross, the stone cross of the generic props at 64 pixels a tile (tools/src/art/generic-props.py)
+    foot_waycross: { img: 'lsw/Fixtures/FootWaycross.png', x: 0, y: 0, tw: 2, th: 4, grid: ['  ', '  ', '  ', '# '], base: 3, pixelsPerTile: 64 },
+    foot_shrine_courtyard: { img: 'lsw/Fixtures/FootCourtyard.png', x: 0, y: 0, tw: 14, th: 10, grid: Array(10).fill('              '), ground: true },
+    foot_shrine_banner: { img: 'lsw/Fixtures/FootShrine.png', x: 64, y: 32, tw: 1, th: 2, grid: [' ', ' '], base: 1 },
     // Bridges run north-south (planks across, rails on the east/west sides). 4 wide x 3 long.
     bridge_ns: pf(HOUSE, 9, 15, ['....', '....', '....'], 'bridge'),
     bridge_stone_ns: pf(HOUSE, 9, 19, ['....', '....', '....'], 'bridge'),
@@ -544,6 +1045,13 @@ export const CATALOG: Catalog = {
     // mill's floor (2x2)
     waterwheel: { ...pf('lsw/Fixtures/WaterWheel.png', 0, 0, ['###', '###', '###'], 'water'), ground: true },
     millstones: pf('lsw/Fixtures/Millstones.png', 0, 0, ['##', '##'], 'woodwall'),
+    // the falls at the head of Vesper Ford (tools/src/art/ford-falls.ts): the river over the north cliff, eight cells
+    // wide and the cliff's three tall, laid over the river's top rows (its cells stay the river's water)
+    ford_falls: pf('lsw/Fixtures/FordFalls.png', 0, 0, ['########', '########', '########'], 'water'),
+    // a grey stone standing out of a river's current, the water white round it (the same module; one cell, the river's water under it)
+    river_rock: pf('lsw/Fixtures/RiverRock.png', 0, 0, ['#'], 'water'),
+    // a lily pad on still water (TilesetWater: a pond's open water with the pad on it), laid on a pond's inner cells
+    lily_pad: pf(WATER, 11, 3, ['#'], 'water'),
     // a bell's rope come down a tower's wall, its grip in reach of the floor (tools/src/art/bell-rope.ts; 1x2, walkable)
     bell_rope: pf('lsw/Fixtures/BellRope.png', 0, 0, ['.', '.']),
     // Desert lion-head wall fountain (2x3) and a square water basin (2x2).
@@ -551,6 +1059,8 @@ export const CATALOG: Catalog = {
     pool: pf(DESERT, 8, 7, ['##', '##'], 'water'),
     // Firstlight's warm spring: the desert sheet's pale pool (3x3), its cells the spring one wades into
     spring: { ...pf(DESERT, 17, 7, ['###', '###', '###'], 'spring'), ground: true },
+    cloudtop_bridge: { img: 'lsw/Buildings/cloudtop-bridge.png', x: 0, y: 0, tw: 3, th: 4, grid: ['   ', '   ', '   ', '   '], ground: true, pixelsPerTile: CLOUDTOP_ART_TILE },
+    ct_shelter_floor_edge: { ...pf(IFLOOR, 12, 7, [' ']), ground: true },
   },
 
   // -------------------------------------------------------------------------------------------
@@ -579,11 +1089,17 @@ export const CATALOG: Catalog = {
   fixtures: {
     'fixture:fixture': { base: t(DUNGEON, 2, 1), open: t(DUNGEON, 3, 1) },
     'fixture:container': { base: px('Items/Treasure/BigTreasureChest.png', 0, 0, 16, 14), open: px('Items/Treasure/BigTreasureChest.png', 16, 0, 16, 14) },
-    'fixture:chest': { base: px('Items/Treasure/BigTreasureChest.png', 0, 0, 16, 14), open: px('Items/Treasure/BigTreasureChest.png', 16, 0, 16, 14) },
-    // a barrel is 22px tall in the house sheet, its lid in the row above (cut a tile high it lost its top)
-    'fixture:barrel': { base: px(HOUSE, 256, 234, 16, 22, 8, 22), open: px(HOUSE, 272, 234, 16, 22, 8, 22) },
-    'fixture:crate': { base: t(DUNGEON, 2, 1), open: t(DUNGEON, 3, 1) },
-    'fixture:pot': { base: t(ELEM, 2, 9) },
+    // the containers: the chest and the crate shut, open with things in, open and empty (tools/src/art/
+    // interior-furniture.py); the barrel and the sack shut and open (tools/src/art/containers.py)
+    'fixture:chest': { base: furniture('chest'), open: furniture('chest_open'), emptied: furniture('chest_empty'), scale: INTERIOR_FURNITURE_JSON.scale },
+    // the Most Holy Hall's (tools/src/art/holyhall-nave.py): the choir's stalls; the slab over the stair, lifted when it
+    // bears `open` (rule slab/told)
+    'fixture:choir_stalls': { base: packPiece(HOLY_NAVE_JSON, 'stalls_e'), scale: HOLY_NAVE_JSON.scale },
+    'fixture:altar_slab': { base: packPiece(HOLY_NAVE_JSON, 'slab'), open: packPiece(HOLY_NAVE_JSON, 'slab_open'), scale: HOLY_NAVE_JSON.scale },
+    'fixture:barrel': { base: container('barrel'), open: container('barrel_open'), scale: CONTAINERS_SCALE },
+    'fixture:crate': { base: furniture('crate'), open: furniture('crate_open'), emptied: furniture('crate_empty'), scale: INTERIOR_FURNITURE_JSON.scale },
+    // (plain or painted by the map's theme: fixtureThemes)
+    'fixture:pot': { base: container('pot_plain'), scale: CONTAINERS_SCALE },
     'fixture:wardrobe': { base: t(ELEM, 2, 7, 1, 2) },
     // the dresser's standing mirror (TilesetElement (8,10))
     'fixture:mirror': { base: t(ELEM, 8, 10) },
@@ -591,7 +1107,7 @@ export const CATALOG: Catalog = {
     'fixture:bookshelf': { base: t(ELEM, 3, 7, 1, 2) },
     // the showcase's furniture, drawn by the oblique renderer (tools/src/art/arch/buildings/inside.ts, BUILDINGS_JSON.props)
     ...propFixtures(),
-    'fixture:sack': { base: t(ELEM, 1, 1) },
+    'fixture:sack': { base: container('sack'), open: container('sack_open'), scale: CONTAINERS_SCALE },
     'fixture:furniture': { base: t(ELEM, 5, 7) },
     'fixture:table': { base: t(ELEM, 5, 7) },
     // a household's furniture (docs/release-1.md): the long table (3x1, centred on its cell like its footprint), the
@@ -603,12 +1119,14 @@ export const CATALOG: Catalog = {
     'fixture:plant': { base: t(ELEM, 0, 7, 1, 2) },
     'fixture:chair': { base: t(ELEM, 0, 9) },
     'fixture:bed': { base: t(BED, 5, 3, 1, 2) },
-    'fixture:bench': { base: t(CAMP, 3, 7) },
-    // the camp's things: a log bench three wide, a cooking rack, the chopping stump, firewood, a lantern post, the tent
-    'fixture:log_bench': { base: t(CAMP, 0, 7, 3, 1) },
-    'fixture:rack': { base: t(CAMP, 8, 3, 2, 2) },
-    // the project's own (tools/src/art/arms-rack.ts): the camp's rack is a cooking rack, its pot hung over the fire
-    'fixture:arms_rack': { base: px('lsw/Fixtures/ArmsRack.png', 0, 0, 32, 32, 16, 31) },
+    // a bench (tools/src/art/generic-props.py): each its own make, the backed one most (they stand in chapels and halls);
+    // one south of a table, seen from behind, the plain one with no back
+    'fixture:bench': { base: genericProp('pew'), variants: [genericProp('pew'), genericProp('pew'), genericProp('bench'), genericProp('worn')], back: genericProp('bench'), scale: GENERIC_PROPS_SCALE },
+    // the camp's things: a bench by the fire (with a back or without), the cooking rack over the fire, the chopping
+    // stump, firewood, a lantern post, the tent; the bench, the rack and the arms rack in two makes each (tools/src/art/outdoor.py)
+    'fixture:log_bench': outdoor('log_bench'),
+    'fixture:rack': outdoor('rack'),
+    'fixture:arms_rack': outdoor('arms_rack'),
     // the Reed Bend's (tools/src/art/flanks.ts): the fisher's nets hung to dry on their pole, her rack of fish drying;
     // her rowboat is the pack's (the Ford's ferry raft is the same boat)
     'fixture:nets': { base: px('lsw/Fixtures/Nets.png', 0, 0, 32, 32, 16, 31) },
@@ -618,9 +1136,17 @@ export const CATALOG: Catalog = {
     'fixture:soot': { base: px('lsw/Fixtures/Soot.png', 0, 0, 48, 32, 24, 22), ground: true },
     'fixture:stump': { base: t(CAMP, 1, 5, 2, 2) },
     // the camp sheet's stack of split logs, their ends out (2x1)
-    'fixture:firewood': { base: t(CAMP, 0, 0, 2, 1) },
-    'fixture:lantern': { base: t(CAMP, 6, 5, 1, 2) },
+    // logs bound, or split wood: each pile its own (tools/src/art/containers.py)
+    'fixture:firewood': { base: container('firewood_logs'), variants: [container('firewood_logs'), container('firewood_split')], scale: CONTAINERS_SCALE },
+    // (plain or rich by the map's theme, as the brazier, the lamp post and the candlestick: fixtureThemes)
+    'fixture:lantern': { base: light('lantern_plain'), lit: light('lantern_plain_lit'), scale: LIGHTS_JSON.scale },
     'fixture:tent': { base: t(CAMP, 7, 0, 3, 3) },
+    // the ferrykeeper's tool rack, her spare planks and her coil of rope (tools/src/art/ferry-camp.py)
+    'fixture:tool_rack': { base: ferryCamp('stall') },
+    'fixture:plank_stack': { base: ferryCamp('planks') },
+    'fixture:rope_coil': { base: ferryCamp('rope') },
+    // the watchman's wall hooks, bare (tools/src/art/watch-shelter.ts; the Cloudtop pair is drawn with its cloak by placedSprites)
+    'fixture:cloak_hooks': { base: px('lsw/Fixtures/WatchShelter.png', 64, 0, 32, 24, 16, 44) },
     'fixture:tent_torn': { base: t(CAMP, 10, 0, 3, 3) },
     // small things of the ground, scattered by mask: each a thing (pick a flower, burn the reeds)
     'fixture:flowers': { base: t(DETAIL, 5, 2), variants: [t(DETAIL, 5, 2), t(NATURE, 6, 11), t(NATURE, 3, 11), t(DETAIL, 2, 0)], ground: true, loose: true },
@@ -634,17 +1160,19 @@ export const CATALOG: Catalog = {
     'fixture:counter': { base: t(ELEM, 14, 0) },
     'fixture:stall': { base: t(ELEM, 7, 1, 1, 2) },
     'fixture:light': { base: px(ELEM, 96, 48, 16, 32, 8, 29) },
-    'fixture:campfire': { base: px(CAMP, 192, 80, 32, 32, 16, 24) },
-    'fixture:brazier': { base: t(HOUSE, 32, 11), lit: t(HOUSE, 31, 11) },
-    'fixture:lamppost': { base: px(ELEM, 96, 48, 16, 32, 8, 29) },
-    // The only candle in the pack is already burning.
-    'fixture:candles': { base: t(CAMP, 13, 7) },
+    // a ring of stones round its logs, or its sticks stood up over the fire: each campfire its own, cold and lit (tools/src/art/lights.py)
+    'fixture:campfire': { base: light('campfire_ring'), variants: [light('campfire_ring'), light('campfire_tepee')], lit: light('campfire_ring_lit'), litVariants: [light('campfire_ring_lit'), light('campfire_tepee_lit')], scale: LIGHTS_JSON.scale },
+    'fixture:brazier': { base: light('brazier_plain'), lit: light('brazier_plain_lit'), scale: LIGHTS_JSON.scale },
+    'fixture:lamppost': { base: light('lamppost_plain'), lit: light('lamppost_plain_lit'), scale: LIGHTS_JSON.scale },
+    'fixture:candles': { base: light('candles_plain'), lit: light('candles_plain_lit'), scale: LIGHTS_JSON.scale },
     'fixture:fireplace': { base: px(HOUSE, 464, 176, 32, 32, 16, 30) },
     'fixture:water': { base: t(ELEM, 6, 2) },
-    'fixture:well': { base: t(ELEM, 6, 2) },
+    // under its roof, or its bare frame (tools/src/art/outdoor.py)
+    'fixture:well': outdoor('well'),
     'fixture:fountain': { base: px(DESERT, 128, 112, 32, 32, 16, 28) },
     'fixture:trough': { base: t(ELEM, 6, 10) },
-    'fixture:sign': { base: t(ELEM, 0, 2) },
+    // a sign, a notice board, a commission board: the notice board under its roof (tools/src/art/generic-props.py)
+    'fixture:sign': { base: genericProp('board'), scale: GENERIC_PROPS_SCALE },
     // a place on the overworld: a signpost where it is; the wild shows no mark of its own
     'site:place': { base: wm('waystone') },
     // the hand-made places, each by its kind; the Ford is its crossing
@@ -664,8 +1192,8 @@ export const CATALOG: Catalog = {
     'structure:door_open': { base: t(IFLOOR, 12, 1) },
     // the wild: its ground is its picture
     'site:wild': { base: wm('none') },
-    'fixture:noticeboard': { base: t(ELEM, 1, 2) },
-    'fixture:questboard': { base: t(ELEM, 1, 2) },
+    'fixture:noticeboard': { base: genericProp('board'), scale: GENERIC_PROPS_SCALE },
+    'fixture:questboard': { base: genericProp('board'), scale: GENERIC_PROPS_SCALE },
     'fixture:craft': { base: t(HOUSE, 29, 15) },
     'fixture:anvil': { base: t(HOUSE, 29, 15) },
     'fixture:forge': { base: px(HOUSE, 496, 192, 32, 48, 16, 46) },
@@ -676,6 +1204,10 @@ export const CATALOG: Catalog = {
     // the slender statue (7, 15) is the waypoint's alone: nothing else may look like one
     'fixture:sacred': { base: t(HOUSE, 5, 15, 2, 2) },
     'fixture:altar': { base: px(HOUSE, 48, 240, 32, 32, 16, 32) },
+    // the stone altar on its two steps, four cells wide (Firstlight's chapel, tools/src/art/firstlight-chapel.py)
+    'fixture:stone_altar': { base: chapel('altar').sprite, scale: FIRSTLIGHT_CHAPEL_JSON.scale },
+    // the long pew along a nave (the Rest's chapel of the Five, tools/src/art/rest-chapel.py)
+    'fixture:pew_long': { base: packPiece(REST_CHAPEL_JSON, 'pew_long'), scale: REST_CHAPEL_JSON.scale },
     // the Held Ground's heart: a longsword point down in a mound of earth (tools/src/art/planted-sword.ts)
     'fixture:planted_sword': { base: px('lsw/Fixtures/PlantedSword.png', 0, 0, 16, 32, 8, 31) },
     // the Pillar Yard's broken Scourging Post, and the red channel cut across the undercroft's floor (tools/src/art/chapter2.py)
@@ -727,13 +1259,14 @@ export const CATALOG: Catalog = {
     'fixture:channel_thorn': { base: px('lsw/Fixtures/ChannelThorn.png', 0, 0, 16, 16, 8, 15), ground: true },
     'fixture:bearer_statue': { base: px('lsw/Fixtures/BearerStatue.png', 0, 0, 16, 40, 8, 39) },
     'fixture:statue': { base: t(HOUSE, 5, 15, 2, 2) },
-    'fixture:gravestone': { base: t(ELEM, 4, 2) },
+    // a stone cross over a grave (tools/src/art/generic-props.py)
+    'fixture:gravestone': { base: genericProp('cross'), scale: GENERIC_PROPS_SCALE },
     // what a person leaves (docs/npc-sandbox.md §2.8): a body is drawn from its look, lying (scene.ts); bones, a skull
     'fixture:body': { base: t(DETAIL, 13, 0) },
     'fixture:bones': { base: t(DETAIL, 13, 0) },
     'fixture:remains': { base: t(DETAIL, 13, 0) },
     // Chapter 1's own (tools/src/art/chapter1.ts): Pell's chalk drawings, the knight's briars
-    'fixture:chalk_stone': { base: px('lsw/Fixtures/Chalk.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:chalk_stone': { base: px('lsw/Fixtures/Chalk.png', 0, 0, 16, 16, 8, 15) },
     'fixture:chalk_door': { base: px('lsw/Fixtures/Chalk.png', 16, 0, 16, 16, 8, 15), ground: true },
     'fixture:chalk_bridge': { base: px('lsw/Fixtures/Chalk.png', 32, 0, 16, 16, 8, 15), ground: true },
     'fixture:chalk_man': { base: px('lsw/Fixtures/Chalk.png', 48, 0, 16, 16, 8, 15), ground: true },
@@ -766,14 +1299,16 @@ export const CATALOG: Catalog = {
     'fixture:vein_gold': { base: t(NATURE, 5, 14) },
     // a vein's spent face: a plain rock face, no ore showing
     'fixture:spentvein': { base: t(NATURE, 6, 16) },
-    'fixture:haystack': { base: px(ELEM, 192, 64, 16, 32, 8, 31) },
+    // bales or a sheaf: each its own (tools/src/art/containers.py)
+    'fixture:haystack': { base: container('hay_bales'), variants: [container('hay_bales'), container('hay_sheaf')], scale: CONTAINERS_SCALE },
     // a felled log lying (the camp sheet's): the house sheet's plank drawn for it read as a bench
     'fixture:logpile': { base: px(CAMP, 16, 29, 32, 18, 16, 18) },
     // No static mushroom art: first frame of the (red-capped) Mushroom monster.
     'fixture:mushroom_ring': { base: t('Actor/Monster/Mushroom/mushroom.png', 0, 0) },
     'fixture:beehive': { base: t(ELEM, 12, 0) },
-    // The Ford: the dead tree at the narrows (the pack's bare tree), the slimes' hollow, the ferry's winch and raft.
-    'fixture:dead_tree': { base: px(NATURE, 64, 0, 32, 32, 16, 31) },
+    // The Ford: the dead tree (two makes, tools/src/art/outdoor.py; the one at the narrows its own, placedSprites), the
+    // slimes' hollow, the ferry's winch and raft.
+    'fixture:dead_tree': outdoor('dead_tree'),
     // the hollow: a mossy rock mound with a cave mouth, drawn on the mouth's tile
     'fixture:burrow': { base: px(RELIEF_DETAIL, 0, 112, 48, 48, 24, 48) },
     // the ferry: a rope post on the landing, and the rowboat that crosses on the line
@@ -823,11 +1358,12 @@ export const CATALOG: Catalog = {
     'fixture:ring': { base: px(CAMP, 160, 48, 32, 32, 16, 28) },
     // The Great Hearth: a wide ring of stones around old ash; lit, the embers glow.
     'fixture:hearth': { base: t(CAMP, 12, 5, 2, 2, 16, 24), lit: t(CAMP, 12, 3, 2, 2, 16, 24) },
-    // the project's own (tools/src/art/scarecrow.ts): the training dummy is the pack's straw man
-    'fixture:scarecrow': { base: px('lsw/Fixtures/Scarecrow.png', 0, 0, 16, 32, 8, 31) },
+    // a straw man in a blue smock or a red one (tools/src/art/outdoor.py)
+    'fixture:scarecrow': outdoor('scarecrow'),
     // the pack's line on its posts with its laundry pegged on it, put together (tools/src/art/washing-line.ts)
     'fixture:washing_line': { base: px('lsw/Fixtures/WashingLine.png', 0, 0, 64, 32, 32, 31) },
-    'fixture:cart': { base: t(ELEM, 0, 3, 2, 2, 16, 30) },
+    // empty, or loaded with a sack and a crate under a cloth: each its own (tools/src/art/containers.py)
+    'fixture:cart': { base: container('cart_empty'), variants: [container('cart_empty'), container('cart_loaded')], scale: CONTAINERS_SCALE },
     'fixture:flower_cart': { base: t(ELEM, 2, 3, 2, 2, 16, 30) },
     'fixture:workbench': { base: t(HOUSE, 29, 8, 2, 1, 16, 16) },
   },

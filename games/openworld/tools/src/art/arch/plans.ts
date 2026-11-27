@@ -44,6 +44,38 @@ export const NAVE = (() => {
   return { TOP, parts, plan, axis: 17, door: [17, 52 + TOP] as [number, number] }
 })()
 
+/**
+ * The nave of the Most Holy Hall (holyhall.nave, 35 by 62, its axis the middle of column 17), as the user's mock-up of
+ * 2026-11-25 lays it (tools/src/art/holyhall-nave/ref.png): the apse at its head, its floor from row 11 under a face nine
+ * cells high; the choir before it, a bay either side of the sanctuary, the stalls, three steps down to the crossing;
+ * the transept's arms beside the choir, walled off from it (the walls running on to the crossing's piers), each running
+ * down an aisle to the nave; two chapels either
+ * side; the nave; the narthex at the west door. No dark over the apse: its face rises from the map's first rows.
+ */
+export const HOLY_NAVE = (() => {
+  const parts = {
+    apse: { x: 12, y: 11, w: 11, h: 6 },
+    choir: { x: 9, y: 17, w: 17, h: 14 },
+    crossing: { x: 9, y: 31, w: 17, h: 6 },
+    armW: { x: 2, y: 25, w: 6, h: 5 },
+    armE: { x: 27, y: 25, w: 6, h: 5 },
+    aisleW: { x: 7, y: 30, w: 1, h: 7 },
+    aisleE: { x: 27, y: 30, w: 1, h: 7 },
+    // (the choir's walls run on down to the crossing's piers; past them the aisles open onto the crossing)
+    aisleW2: { x: 8, y: 34, w: 1, h: 3 },
+    aisleE2: { x: 26, y: 34, w: 1, h: 3 },
+    chapelW1: { x: 4, y: 35, w: 3, h: 3 },
+    chapelW2: { x: 4, y: 45, w: 3, h: 7 },
+    chapelE1: { x: 28, y: 35, w: 3, h: 3 },
+    chapelE2: { x: 28, y: 45, w: 3, h: 7 },
+    nave: { x: 7, y: 37, w: 21, h: 20 },
+    narthex: { x: 12, y: 57, w: 11, h: 4 },
+    door: { x: 17, y: 61, w: 1, h: 1 },
+  }
+  const plan = carve(35, 62, Object.values(parts))
+  return { TOP: 0, parts, plan, axis: 17, door: [17, 61] as [number, number] }
+})()
+
 /** A hall's plan: its rects (offset by `TOP` rows of the dark its tallest face rises into), the plan, its door cells. */
 export interface HallPlan {
   TOP: number
@@ -173,8 +205,26 @@ export const HALLS = {
   // its bedroom
   // the Chapel of the First Dawn on Dawn Hill (2026-10-28): its nave, the apse at its head where the first hearth stands,
   // and through an arch in its east wall the foot of the bell tower
-  dhchapel: hallPlan(21, 14, 7, { apse: [6, 1, 5, 2], nave: [3, 3, 11, 9], arch: [14, 5, 1, 1], tower: [15, 3, 4, 5], entry: [7, 12, 3, 1] }, [[8, 13]]),
+  // (its tower three cells across since 2026-11-24, the bell's beam between the piers either side of it)
+  dhchapel: hallPlan(21, 14, 7, { apse: [6, 1, 5, 2], nave: [3, 3, 11, 9], arch: [14, 5, 1, 1], tower: [15, 3, 3, 5], entry: [7, 12, 3, 1] }, [[8, 13]]),
   prchapel: hallPlan(21, 13, 7, { nave: [2, 2, 11, 9], cell: [14, 3, 5, 6], arch: [13, 5, 1, 1], entry: [6, 11, 3, 1] }, [[7, 12]]),
+  // the Rest's chapel of the Five alone (2026-11-24): the plan of prchapel, its walls its own (tools/src/art/rest-chapel.py)
+  // the Scourging House's Chapel of the Pillar alone (2026-11-25): the chapel's plan, its side chapels a row deeper as the
+  // user's mock-up has them, its walls its own (tools/src/art/scourge-chapel.py)
+  scchapel: hallPlan(30, 19, 9, { nave: [5, 5, 20, 10], apse: [11, 2, 8, 3], chapelW: [2, 8, 3, 5], chapelE: [25, 8, 3, 5], entry: [12, 15, 6, 3] }, [[14, 18]]),
+  // the Scourging House's undercroft alone (2026-11-25): the undercroft's plan, its walls its own
+  // (tools/src/art/scourge-undercroft.py)
+  scundercroft: hallPlan(26, 18, 5, { hall: [3, 3, 20, 10], apse: [9, 1, 8, 2], landing: [11, 13, 4, 3] }, []),
+  // Fairweight's Chapel of the Measure alone (2026-11-25): the plan of prchapel, its walls its own
+  // (tools/src/art/fairweight-chapel.py)
+  fwchapel: hallPlan(21, 13, 7, { nave: [2, 2, 11, 9], cell: [14, 3, 5, 6], arch: [13, 5, 1, 1], entry: [6, 11, 3, 1] }, [[7, 12]]),
+  // Nailgate's Chapel of the Nail alone (2026-11-25): the healer's hut's plan, its walls its own
+  // (tools/src/art/nailgate-chapel.py)
+  // the Church of Whiteveil alone (2026-11-25): the Chapel of the Pillar's plan, its walls its own
+  // (tools/src/art/whiteveil-church.py)
+  wvchurch: hallPlan(30, 19, 9, { nave: [5, 5, 20, 10], apse: [11, 2, 8, 3], chapelW: [2, 8, 3, 5], chapelE: [25, 8, 3, 5], entry: [12, 15, 6, 3] }, [[14, 18]]),
+  ngchapel: hallPlan(18, 13, 5, { hut: [2, 3, 14, 7], entry: [7, 10, 4, 2] }, [[8, 12]]),
+  wschapel: hallPlan(21, 13, 7, { nave: [2, 2, 11, 9], cell: [14, 3, 5, 6], arch: [13, 5, 1, 1], entry: [6, 11, 3, 1] }, [[7, 12]]),
   prhostel: hallPlan(23, 12, 6, { common: [2, 2, 9, 8], dorm: [12, 2, 9, 8], arch: [11, 5, 1, 2], entry: [5, 10, 3, 1] }, [[6, 11]]),
   abhall: hallPlan(28, 13, 7, { scriptorium: [2, 4, 5, 6], hall: [8, 2, 11, 9], cell: [20, 4, 6, 6], aW: [7, 6, 1, 1], aE: [19, 6, 1, 1], entry: [12, 11, 3, 1] }, [[13, 12]]),
   abcrypt: hallPlan(28, 20, 5, { vault: [3, 7, 22, 8], arch: [13, 6, 2, 1], entry: [12, 15, 4, 3] }, [[13, 18]]),

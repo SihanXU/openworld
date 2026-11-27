@@ -4,7 +4,7 @@
 // The quests and objectives are content (content/src/chapter1.ts).
 
 import type { Entity, StepDef } from '@openworld/engine'
-import { ALBERIC_CAMPAIGN, ALBERIC_ID, CH1, CHAPTER_TWO, HAVEN, createBoss } from '@openworld-game/content'
+import { ALBERIC_CAMPAIGN, ALBERIC_ID, CH1, CHAPTER_TWO, HAVEN, WATCH_SHELTER, createBoss } from '@openworld-game/content'
 
 const HAVEN_MAP = HAVEN.map
 import { L } from '../kit.ts'
@@ -16,9 +16,9 @@ const say = (who: string, en: string, zh: string, mood?: 'neutral' | 'happy' | '
 /** Where the chapter puts things (map coordinates). */
 export const CH1_AT = {
   village: { shrine: [23, 16] as const, statue: [24, 14] as const, drawing: [20, 16] as const, statueStone: [30, 19] as const, severin: [26, 18] as const, courier: [24, 18] as const },
-  ford: { stone: [17, 13] as const, drawing: [27, 21] as const, briars: [[29, 21], [35, 21]] as const },
+  ford: { stone: [17, 11] as const, drawing: [27, 21] as const, briars: [[27, 23], [36, 23]] as const },
   foot: { drawing: [22, 13] as const },
-  summit: { log: [13, 4] as const },
+  summit: { log: [WATCH_SHELTER.log.x, WATCH_SHELTER.log.y] as const },
   pasture: { watch: [20, 12] as const },
   forest: { camp: [31, 24] as const },
   hollow: { stones: [[24, 25], [30, 25]] as const },
@@ -91,7 +91,7 @@ export function chapter1Ford(m: MapBuilder): void {
 /** The Mountain Foot: Pell's drawing beside the shrine stone. */
 export function chapter1Foot(m: MapBuilder): void {
   // the hunter's cabin, long left: his gloves still by the block in its yard, where he took them off to split wood
-  m.item({ form: 'item/clothing/gloves', material: 'leather', name: L("Hunter's Gloves", '猎人的手套') }, ...spot(m, 9, 16))
+  m.item({ form: 'item/clothing/gloves', material: 'leather', name: L("Hunter's Gloves", '猎人的手套') }, ...spot(m, 9, 18))
   drawing(m, 'stone', ...CH1_AT.foot.drawing, 'The shrine stone, five marks on it, the first scribbled over in black. A grey figure with its hand on it.', '那块路碑，上面有五道痕，第一道被涂成了黑色。一个灰色的人把手按在碑上。')
 }
 
@@ -142,7 +142,7 @@ export function chapter1Kingdom(m: MapBuilder): void {
 export function chapter1Summit(m: MapBuilder): void {
   const [x, y] = CH1_AT.summit.log
   m.fixture('fixture/furniture/table', x, y, {
-    id: 'summit.log',
+    id: WATCH_SHELTER.log.id,
     name: L("The watchman's log", '守夜人的日志'),
     tags: ['readable'],
     props: {
@@ -150,8 +150,14 @@ export function chapter1Summit(m: MapBuilder): void {
       text_zh: '云顶观日哨·日落记录。第401年：仲夏19:42。第405年：19:31。第409年：19:12——我把沙漏查了两遍。第411年：报告送下山，再没有回音。最后一页：在石堆旁的雪里发现一点睡着的光，暖得像炭火。它醒了，问我它多大了。我不知道该怎么回答。',
     },
   })
-  // the watchman's cloak, left on its peg: he went down the mountain without it
-  m.item({ form: 'item/clothing/cloak', material: 'cloth', quality: 'fine', name: L("Watchman's Cloak", '守夜人的斗篷'), props: {} }, ...spot(m, 8, 5))
+  // The hook holds the existing equipment instance, whose id persists in saves.
+  const cloak = WATCH_SHELTER.cloak
+  m.fixture('fixture/cloak_hooks', cloak.x, cloak.y, { id: cloak.hook })
+  const garment = m.makeItem(
+    { form: 'item/clothing/cloak', material: 'cloth', quality: 'fine', name: L("Watchman's Cloak", '守夜人的斗篷'), props: { lookColor: cloak.lookColor } },
+    { on: 'inside', holder: cloak.hook },
+  )
+  m.entities.push({ ...garment, id: cloak.id })
 }
 
 /** The grassland: Brin's place by the herd (at her post by the fold's gate), and the ground where the herd kneels at dusk. */

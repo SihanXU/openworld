@@ -23,7 +23,7 @@ export const CH3_SPOTS: Record<string, Spot[]> = {
     { at: [12, 22], name: L("A pilgrim's bones", '朝圣者的遗骨') },
   ],
   // the Almoner's mittens in the box the last almoner kept in the chapel's side room
-  'fairweight.chapel': [{ at: [16, 11], kind: 'chest', name: L("The last almoner's box", '上一任施赈人的箱子') }],
+  'fairweight.chapel': [{ at: [17, 14], kind: 'chest', name: L("The last almoner's box", '上一任施赈人的箱子') }],
   // the Black Balance's stole between the clerks' desks, its cincture by the court's cart
   blackbalance: [{ at: [12, 15], name: PRIEST }, { at: [24, 18], name: PRIEST }],
   // its cowl by the bookcases, its gloves by the chests, away from the ledger

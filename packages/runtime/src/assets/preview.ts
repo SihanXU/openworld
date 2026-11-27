@@ -99,10 +99,10 @@ function card(parent: HTMLElement, key: string, w: number, h: number, note?: str
 // ------------------------------------------------------------------------------------------
 // drawing primitives (all coordinates in source pixels; the context is scaled by S)
 // ------------------------------------------------------------------------------------------
-function blit(ctx: CanvasRenderingContext2D, path: string, sx: number, sy: number, w: number, h: number, dx: number, dy: number): void {
+function blit(ctx: CanvasRenderingContext2D, path: string, sx: number, sy: number, w: number, h: number, dx: number, dy: number, scale = 1): void {
   const im = img(path)
   if (!ready(im)) return
-  ctx.drawImage(im, sx, sy, w, h, dx * S, dy * S, w * S, h * S)
+  ctx.drawImage(im, sx, sy, w, h, dx * S, dy * S, w * S * scale, h * S * scale)
 }
 function tile(ctx: CanvasRenderingContext2D, [path, c, r]: [string, number, number], dx: number, dy: number): void {
   blit(ctx, path, c * T, r * T, T, T, dx, dy)
@@ -261,7 +261,8 @@ const BLOB_UNDER: Record<string, [string, number, number]> = {
 // Prefabs with their grid
 // ------------------------------------------------------------------------------------------
 function drawPrefab(ctx: CanvasRenderingContext2D, p: PrefabDef, ox: number, oy: number): void {
-  blit(ctx, p.img, p.x, p.y, p.tw * T, p.th * T, ox, oy)
+  const tile = p.pixelsPerTile ?? T
+  blit(ctx, p.img, p.x, p.y, p.tw * tile, p.th * tile, ox, oy, T / tile)
   p.grid.forEach((row, y) =>
     [...row].forEach((ch, x) => {
       const colors: Record<string, string> = { '#': 'rgba(255,40,40,.33)', D: 'rgba(40,255,80,.55)', '.': 'rgba(80,160,255,.25)' }
@@ -280,7 +281,8 @@ function drawPrefab(ctx: CanvasRenderingContext2D, p: PrefabDef, ox: number, oy:
     drawers.push(() => {
       clear(ctx)
       fillTiles(ctx, GRASS, 2 * w + 1, h)
-      blit(ctx, p.img, p.x, p.y, p.tw * T, p.th * T, T, T)
+      const tile = p.pixelsPerTile ?? T
+      blit(ctx, p.img, p.x, p.y, p.tw * tile, p.th * tile, T, T, T / tile)
       drawPrefab(ctx, p, w * T + 8 + T, T)
     })
   }

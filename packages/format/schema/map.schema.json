@@ -478,6 +478,10 @@
           ],
           "description": "The window's shape it takes: a tall pointed light, a round rose, a soft round glow."
         },
+        "aboveScenery": {
+          "type": "boolean",
+          "description": "Draw above the scenery and ambient darkness, as light around a mounted lamp."
+        },
         "when": {
           "type": "string",
           "enum": [
@@ -502,7 +506,7 @@
         "when"
       ],
       "additionalProperties": false,
-      "description": "A pool of coloured light on a map's floor (MapData.lights)."
+      "description": "An authored patch of coloured light on a map (MapData.lights)."
     },
     "PropValue": {
       "type": [

@@ -40,6 +40,20 @@ the arrival and crossing scenes no longer ask an off-map peddler to speak.
   are gone (content `life.ts` forage/pick); flowers, tufts, leaves and pebbles come back slowly on any outdoor
   map (content `ontology.ts` LITTER: one every two hours, three at most), and the hand-made maps strew about a
   quarter of what they did (`builder.ts` LITTER_SCALE).
+- The chapel (`meadow.church`) as the user drew it (2026-11-24; their sheet, pew and mock-ups in
+  `tools/src/art/firstlight-chapel/`, cut by `firstlight-chapel.py`): laid on the nave's middle, between two cells. Over
+  the stone altar (`fixture/sacred/altar/stone`, four cells wide, "The five wounds") the wall carries the carved five
+  wounds round Astra, a great window over it, two lancets and a red banner either side; candles in threes either side
+  of the altar, a two-cell carpet to the door, three pews (`fixture/furniture/pew`) either side, the bookstand in the
+  north-east corner. Ilse's cell has a desk and stool under a shelf, Anselm's a night table with its lantern. The walls
+  are `flchurch_shell` drawn bare (halls.ts) with the pictures laid on them at 64 pixels a tile (catalog.ts); the things
+  wear the chapel's own theme (`chapel`, its beds, bookstand and plants the plain room's). Redraw the shell, then run
+  the script again (tools/test/buildings.test.ts holds them together).
+- The churchyard's six gravestones, two rows of three, in the south-west clearing, drawn as the user drew its graves (2026-11-24; their two
+  drawings in `tools/src/art/firstlight-graves/`, cut by `firstlight-graves.py`): the first row a headstone with a cross
+  over a bed of earth, the second a pointed headstone between pinnacles over grass, each picture two cells wide, its
+  headstone over the gravestone's cell and its bed in the cell west of it (catalog.ts placedSprites, by the gravestones'
+  ids `meadow~g` … `meadow~k` and `village.gravestone`). The gravestones themselves are as they were.
 - Every house has a door and a furnished room behind it (an interior map each:
   `villageInteriors`), the cottages included; older saves get the town by
   `content/src/migrateSmithy.ts`.

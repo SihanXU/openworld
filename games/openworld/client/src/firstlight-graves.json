@@ -1,0 +1,22 @@
+{
+ "img": "lsw/Fixtures/FirstlightGraves.png",
+ "scale": 0.25,
+ "pieces": {
+  "cross": {
+   "x": 0,
+   "y": 0,
+   "w": 120,
+   "h": 123,
+   "ax": 92.0,
+   "ay": 119
+  },
+  "gothic": {
+   "x": 122,
+   "y": 0,
+   "w": 111,
+   "h": 131,
+   "ax": 87.5,
+   "ay": 127
+  }
+ }
+}

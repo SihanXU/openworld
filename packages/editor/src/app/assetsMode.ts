@@ -5,7 +5,7 @@
 // (the Ninja Adventure pack's subset, CC0), a file of which is copied into the project when it is used; and
 // what the game's types name that no picture answers yet.
 
-import type { ActorDef, Catalog, FxDef, SpriteDef } from '@openworld/runtime/src/assets/types.ts'
+import type { ActorDef, Catalog, FxDef, PrefabDef, SpriteDef } from '@openworld/runtime/src/assets/types.ts'
 import type { AssetFile } from '../server/assets.ts'
 import { call } from './api.ts'
 import type { Ctx, Mode } from './context.ts'
@@ -214,7 +214,7 @@ export class AssetsMode implements Mode {
     if (kind === 'plain') { const t = (v as [string, number, number][])[0]; return t ? drawSprite(c, this.url(ctx, t[0]), { x: t[1] * 16, y: t[2] * 16, w: 16, h: 16 }, 2) : undefined }
     if (kind === 'blob') { const b = v as { img: string; col: number; row: number }; return drawSprite(c, this.url(ctx, b.img), { x: b.col * 16, y: b.row * 16, w: 48, h: 48 }, 1) }
     if (kind === 'room') { const r = v as { img: string; col: number; row: number; size: number }; return drawSprite(c, this.url(ctx, r.img), { x: r.col * 16, y: r.row * 16, w: r.size * 16, h: r.size * 16 }, 1) }
-    if (kind === 'prefab') { const p = v as { img: string; x: number; y: number; tw: number; th: number }; return drawSprite(c, this.url(ctx, p.img), { x: p.x, y: p.y, w: p.tw * 16, h: p.th * 16 }, 1) }
+    if (kind === 'prefab') { const p = v as PrefabDef; return drawSprite(c, this.url(ctx, p.img), { x: p.x, y: p.y, w: p.tw * (p.pixelsPerTile ?? 16), h: p.th * (p.pixelsPerTile ?? 16) }, 1) }
     c.width = 0
   }
 
@@ -239,7 +239,7 @@ export class AssetsMode implements Mode {
     if (kind === 'blob' || kind === 'room') { const b = v as { img: string; col: number; row: number; size?: number }; return { img: b.img, rect: { x: b.col * 16, y: b.row * 16, w: (b.size ?? 1) * 16, h: (b.size ?? 1) * 16 } } }
     if (kind === 'fx') { const f = v as FxDef; return { img: f.img, rect: { x: 0, y: 0, w: f.fw, h: f.fh } } }
     if (kind === 'actor') { const a = v as ActorDef; return { img: `${a.dir}/${a.sheet}` } }
-    if (kind === 'prefab') { const p = v as { img: string; x: number; y: number; tw: number; th: number }; return { img: p.img, rect: { x: p.x, y: p.y, w: p.tw * 16, h: p.th * 16 } } }
+    if (kind === 'prefab') { const p = v as PrefabDef; return { img: p.img, rect: { x: p.x, y: p.y, w: p.tw * (p.pixelsPerTile ?? 16), h: p.th * (p.pixelsPerTile ?? 16) } } }
     return undefined
   }
 
@@ -280,9 +280,10 @@ export class AssetsMode implements Mode {
         const slash = img.lastIndexOf('/')
         into[key] = { ...(a ?? {}), dir: img.slice(0, Math.max(0, slash)), sheet: img.slice(slash + 1), cols: Math.max(1, Math.round(size.w / r.w)), rows: Math.max(1, Math.round(size.h / r.h)) }
       } else if (kind === 'prefab') {
-        const tw = Math.max(1, Math.round(r.w / 16))
-        const th = Math.max(1, Math.round(r.h / 16))
-        const p = v as { grid?: string[] } | undefined
+        const p = v as PrefabDef | undefined
+        const tile = p?.pixelsPerTile ?? 16
+        const tw = Math.max(1, Math.round(r.w / tile))
+        const th = Math.max(1, Math.round(r.h / tile))
         into[key] = { ...(p ?? {}), img, x: r.x, y: r.y, tw, th, grid: p?.grid?.length === th && p.grid[0]?.length === tw ? p.grid : Array.from({ length: th }, () => '#'.repeat(tw)) }
       }
     })
@@ -444,7 +445,7 @@ export class AssetsMode implements Mode {
     else if (kind === 'blob') { const b = v as { img: string; col: number; row: number }; await drawSprite(canvas(t('the block')), this.url(ctx, b.img), { x: b.col * 16, y: b.row * 16, w: 160, h: 80 }, 2) }
     else if (kind === 'room') { const r = v as { img: string; col: number; row: number; size: number }; await drawSprite(canvas(t('the walls')), this.url(ctx, r.img), { x: r.col * 16, y: r.row * 16, w: r.size * 16, h: r.size * 16 }, 2) }
     else if (kind === 'fx') { const f = v as FxDef; await drawSprite(canvas(t('{n} frames at {fps}/s', { n: f.frames, fps: f.fps })), this.url(ctx, f.img), { x: 0, y: 0, w: f.fw, h: f.fh, frames: Math.min(f.frames, 8), ...(f.vertical && { step: 0 }) }, f.fw > 32 ? 1 : 3) }
-    else if (kind === 'prefab') { const p = v as { img: string; x: number; y: number; tw: number; th: number }; await drawSprite(canvas(t('{w}×{h} tiles', { w: p.tw, h: p.th })), this.url(ctx, p.img), { x: p.x, y: p.y, w: p.tw * 16, h: p.th * 16 }, 2) }
+    else if (kind === 'prefab') { const p = v as PrefabDef; await drawSprite(canvas(t('{w}×{h} tiles', { w: p.tw, h: p.th })), this.url(ctx, p.img), { x: p.x, y: p.y, w: p.tw * (p.pixelsPerTile ?? 16), h: p.th * (p.pixelsPerTile ?? 16) }, 2) }
   }
 
   // ------------------------------------------------------------------ the files

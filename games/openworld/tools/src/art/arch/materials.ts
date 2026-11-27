@@ -38,6 +38,8 @@ const RAMPS: Record<string, string[]> = {
   po: ['#fdf0c6', '#f2d995', '#dcbc6e', '#b89650', '#8a6d38'],
   pb: ['#eef3f6', '#d3dfe6', '#b2c3cf', '#8c9fae', '#687a88'],
   pw: ['#ffffff', '#f4f2ee', '#dedbd4', '#bcb8ae', '#918c82'],
+  // the Most Holy Hall's rose-grey stone, as the user's sheets paint it (tools/src/art/holyhall-nave.py)
+  mv: ['#c9a597', '#ae8a7f', '#977670', '#7a5e5b', '#5c4646', '#413235'],
   // timber
   w: ['#c8966b', '#a3754e', '#7d5236', '#5a3a28', '#3f281d'],
   // brick
@@ -249,6 +251,7 @@ export const MATERIALS: Record<string, (s: Surface) => string> = {
   },
   salt: plain('sl', 0),
   whiteStone: ashlar('pw', 7, 16),
+  roseStone: ashlar('mv', 7, 14),
   // the north's caves: rock glazed with ice, blue in its hollows; crystal growing out of it, lit from within
   iceRock: (s) => step(hash(Math.floor(s.x / 6), Math.floor(s.z / 5), 77) < 0.35 ? 'pb' : 'g', tone(s) + (hash(Math.floor(s.x / 3), Math.floor(s.z / 7), 78) < 0.25 ? 1 : 0)),
   crystal: (s) => step(hash(Math.floor(s.x / 4), Math.floor(s.y / 4), 79) < 0.5 ? 'B' : 'U', s.cls === 'top' ? 0 : tone(s, -0.5)),
