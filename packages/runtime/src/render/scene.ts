@@ -147,7 +147,7 @@ const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [
 
 /** The ground a stocked pond's fish shadows swim in. */
 const FISH_WATER = new Set(['water', 'deepwater'])
-const TINT_OF: Record<string, number> ={ frozen: 0xbfe9ff, burning: 0xffc9a0, wet: 0xc8dcff, electrified: 0xfff6a0, oiled: 0xb9b29a, poisoned: 0xb6ec8c, webbed: 0xd9d2e6, frenzied: 0xff9f9f, shelled: 0xcfc4ad, hunted: 0xffc2a8, branded: 0xffb070, weighing: 0xffe08a, robed: 0xf0f4ff }
+const TINT_OF: Record<string, number> ={ frozen: 0xbfe9ff, burning: 0xffc9a0, wet: 0xc8dcff, electrified: 0xfff6a0, oiled: 0xb9b29a, poisoned: 0xb6ec8c, webbed: 0xd9d2e6, frenzied: 0xff9f9f, shelled: 0xcfc4ad, hunted: 0xffc2a8, branded: 0xffb070, weighing: 0xffe08a, robed: 0xf0f4ff, fierce: 0xffa890 }
 const ELEMENT_COLOR: Record<string, number> = { fire: 0xff7a1a, ice: 0x9fe8ff, lightning: 0xfff27a, water: 0x4aa0ff, wind: 0xe8fff4, earth: 0xb08850, none: 0xffffff }
 
 /** A stable hash of a string (an entity's id), salted. */
@@ -1735,6 +1735,8 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     this.paint(v)
+    // a fierce one stands a head taller than its kind
+    v.root.setScale(e.statuses.includes('fierce') ? 1.3 : 1)
     // a thing an act waits on shimmers; one who is down lies on the ground
     v.body.setAlpha(this.alphaOf(v))
     this.drawPose(v, e.boss ? undefined : e.tags.includes('body') ? 'lie' : e.pose)

@@ -20,7 +20,7 @@ export function reseed(seed: number): void {
 
 const SOLID_TERRAIN = new Set(['water', 'deepwater', 'tree', 'pine', 'thornhedge', 'rock', 'wall', 'woodwall', 'burnt_wall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
 /** The content's types, for what the builder must know of a thing: its footprint, whether it is solid. */
-const ONTO = new OntologyIndex(buildOntology())
+export const ONTO = new OntologyIndex(buildOntology())
 
 export type Cell = [number, number]
 

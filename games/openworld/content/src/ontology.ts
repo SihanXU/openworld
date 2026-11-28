@@ -25,7 +25,7 @@ import { FLOWER_CROPS, GARDEN_SPECIES, VEGETABLE_CROPS, cropHours } from './crop
 import { BOSSES, BOSS_ENCOUNTERS, BOSS_KITS, BOSS_TYPES } from './bosses.ts'
 import { CREATURE_TACTICS, ELITE_KITS, KIT_TYPES, KITS } from './kits.ts'
 import { CREATURE_DROPS } from './drops.ts'
-import { CREATURE_ROLES, CREATURE_STATS } from './levels.ts'
+import { CREATURE_ROLES, CREATURE_STATS, FIERCE, FIERCE_STATUS } from './levels.ts'
 import { affinityOf } from './affinities.ts'
 import { SKILL_STATUSES } from './afflictions.ts'
 import { SKILL_PROFESSIONS } from './skills.ts'
@@ -804,7 +804,7 @@ export function buildOntology(): Ontology {
       refusal: { en: 'I will not harm a child.', zh: '我不会伤害孩子。' },
     },
     types,
-    statuses: Object.fromEntries([...STATUSES, ...BOON_STATUSES, ...SOCIAL_STATUSES, ...FAITH_STATUSES, ...SKILL_STATUSES].map((s) => [s.id, s])),
+    statuses: Object.fromEntries([...STATUSES, FIERCE_STATUS, ...BOON_STATUSES, ...SOCIAL_STATUSES, ...FAITH_STATUSES, ...SKILL_STATUSES].map((s) => [s.id, s])),
     // the creatures' own skills (kits.ts, docs/creatures.md), taken up by the kit goal before they fight as before
     // every monster's skills, the minor monsters' (kits.ts) and the bosses' (bosses.ts), and the boss fights that take
     // theirs up in turn (docs/skills.md)
@@ -902,6 +902,7 @@ export function buildOntology(): Ontology {
         every: NIGHT_EVERY,
         tag: 'nightborn',
         ai: { behaviour: 'melee', temper: 'aggressive', sight: 8, leash: 14 },
+        rare: FIERCE,
       },
     ],
     elements: ELEMENTS,

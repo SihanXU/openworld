@@ -404,3 +404,26 @@ Checks: `tools/test/motion.test.ts` holds that a monster that takes a foe up sho
 all while it sees nothing, and again when it sees once more after that; and that a wolf three cells off whose first
 act is its lunge has shown it by the time it winds up. Without the kit goal's change that second check fails. In
 the browser, a wolf on Dawnhill showed the "!" within 0.6 s of the player coming into its sight.
+
+## 23. Fierce (2026-11-29)
+
+Every wolf of a kind was the same wolf. Now and then one is not: about one in twelve minor monsters is fierce, as
+Diablo's champions, Ark's and Palworld's alphas and Monster Hunter's tempered monsters stand out of their kind, worth
+seeking and worth fearing.
+
+- **What it is.** Thrice its kind's health (and so thrice the experience, which is the health it had), half again its
+  attack, thrice the chance of its own piece of gear, under a name of its own: "fierce wolf", 凶悍的狼. It keeps its
+  kind's kit, temper and drops. It carries the status `fierce` (content levels.ts `FIERCE`, `FIERCE_STATUS`), which the
+  page draws a third larger and flushed red (scene.ts), and which names it in the codex's and the log's words.
+- **Which.** Any minor monster's appearance may bring one (the engine's `AppearDef.rare`: a chance, a name with
+  `{name}` its kind's, multipliers over its kind's numbers or the map's levelled ones, statuses besides), the night's
+  walkers too; and of those placed on the maps about one in twelve is, chosen by where it stands (a hash of the map,
+  the kind and the cell, tools demo/kit.ts `fierce`), so no other draw of a map's making moves, and never one an older save knows by its id (quest/kept-ids.json),
+  which stays as that save had it. Elites and bosses never are.
+- **The engine** draws the chance only for an appearance that has `rare`, so every other appearance's dice fall as
+  before.
+
+Checks: `tools/test/fierce.test.ts` holds that the placed fierce ones are between 4% and 14% of the placed minor
+monsters, each at thrice its level's health, half again its attack and thrice its piece's chance, named fierce in both
+languages; that every minor monster's appearance and the night walkers' carry `FIERCE`, and no other; and that an
+appearance at chance one brings a fierce wolf with those numbers and names, and at chance nought a plain one.

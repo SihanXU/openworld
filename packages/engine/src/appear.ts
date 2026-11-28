@@ -5,10 +5,11 @@
 // (Ontology.appear). The world's `appear` period runs the primitive on the active map (dormant maps
 // are frozen, design.md §5.12): an appearance whose time has come, at its hours and weather, adds
 // one more of its weighted types on a free cell of its ground, at its distance from the one at the
-// keys, until `max` are on the map. A creature comes with its behaviour, at home where it appears.
+// keys, until `max` are on the map. A creature comes with its behaviour, at home where it appears; now and
+// then one comes rare, under a name of its own and with its numbers raised (`rare`).
 
-import type { Engine } from './engine.ts'
-import type { AppearDef, MapData } from './types.ts'
+import { textOf, type Engine } from './engine.ts'
+import type { AppearDef, MapData, PropValue, RareDef, Text } from './types.ts'
 
 /** How often (ticks) the world looks at what appears: every appearance's `every` is a multiple of it. */
 export const APPEAR_TICK = 30
@@ -81,15 +82,29 @@ function one(eng: Engine, active: string, a: AppearDef): void {
     if (!w.inBounds(active, x, y)) continue
     if (a.on && !a.on.includes(w.terrainAt(active, x, y))) continue
     if (!w.walkable(active, x, y) || w.placedAt(active, x, y).length) continue
+    const def = w.onto.resolve(type)
+    const rare = a.rare && w.rand() < a.rare.chance ? rarify(a.rare, def.name ?? type.split('/').pop()!.replace(/_/g, ' '), { ...def.props, ...map.levelled?.[type] }) : undefined
+    const props = { ...map.levelled?.[type], ...rare?.props }
     const made = w.create(type, { on: 'tile', map: active, x, y }, {
       ...(a.ai && { facing: 'down' as const, ai: { ...structuredClone(a.ai), home: { map: active, x, y } } }),
       ...(a.tag && { tags: [a.tag] }),
-      ...(map.levelled?.[type] && { props: { ...map.levelled[type] } }),
+      ...(Object.keys(props).length && { props }),
+      ...(rare?.name && { name: rare.name }),
     })
     eng.touch({ e: made.id })
-    for (const st of a.statuses ?? []) eng.applyStatus({ e: made.id }, st)
+    for (const st of [...(a.statuses ?? []), ...((rare && a.rare!.statuses) ?? [])]) eng.applyStatus({ e: made.id }, st)
     return
   }
+}
+
+export function rarify(rare: RareDef, kind: Text, props: Record<string, PropValue | undefined>): { name?: Text; props: Record<string, number> } {
+  const fill = (l: 'en' | 'zh') => textOf(rare.name, l).replaceAll('{name}', textOf(kind, l))
+  const out: Record<string, number> = {}
+  for (const [k, m] of Object.entries(rare.mul ?? {})) {
+    const v = props[k]
+    if (typeof v === 'number') out[k] = Number.isInteger(v) ? Math.round(v * m) : v * m
+  }
+  return { ...(rare.name && { name: { en: fill('en'), zh: fill('zh') } }), props: out }
 }
 
 /** An older chunk's yield (MapData.forage, one type each) as appearances. */

@@ -2,7 +2,10 @@
 // is its place in the world — the level its own piece of gear is made at (trophies.ts) — and its health grows with it as
 // gear does (a quarter a level, GEAR_LEVELS.perLevel), so a monster met with gear of its own level takes as long to fell
 // at level 7 as at level 1. Its role says how it plays: many and soft, a fighter, a soft caster, a wall, a gatekeeper.
+// One in twelve comes fierce (§23, Diablo's champions, Ark's alphas, Monster Hunter's tempered): thrice the health and so
+// thrice the experience, half again the attack, thrice the chance of its piece, under a name of its own.
 
+import type { RareDef, StatusDef } from '@openworld/engine'
 import { GEAR_LEVELS } from './gear.ts'
 import { TROPHY_OF } from './trophies.ts'
 
@@ -81,3 +84,12 @@ export function creatureStats(level: number, role: Role): { level: number; hp: n
 export const CREATURE_STATS = Object.fromEntries(
   Object.entries(CREATURE_ROLES).map(([type, role]) => [type, creatureStats(MET_AT[type] ?? TROPHY_OF[type]?.level ?? 1, ROLES[role])]),
 )
+
+export const FIERCE_STATUS: StatusDef = { id: 'fierce', name: { en: 'fierce', zh: '凶悍' } }
+
+export const FIERCE: RareDef = {
+  chance: 1 / 12,
+  name: { en: 'fierce {name}', zh: '凶悍的{name}' },
+  mul: { hp: 3, maxHp: 3, atk: 1.5, trophyChance: 3 },
+  statuses: [FIERCE_STATUS.id],
+}

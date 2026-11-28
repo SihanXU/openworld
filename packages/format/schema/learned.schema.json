@@ -2218,6 +2218,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "rare": {
+          "$ref": "#/definitions/RareDef",
+          "description": "Now and then one comes rare (Diablo's champions, Ark's alphas): by `chance`, named `name` (`{name}` the kind's), its numbers `mul` times its kind's (the map's levelled ones where it has them), with `statuses` besides."
         }
       },
       "required": [
@@ -2251,6 +2255,55 @@
         "y"
       ],
       "additionalProperties": false
+    },
+    "RareDef": {
+      "type": "object",
+      "properties": {
+        "chance": {
+          "type": "number"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "mul": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "chance"
+      ],
+      "additionalProperties": false
+    },
+    "Text": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "en": {
+              "type": "string"
+            },
+            "zh": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "en"
+          ],
+          "additionalProperties": false
+        }
+      ]
     },
     "Impulse": {
       "type": "string",
@@ -2386,28 +2439,6 @@
         }
       ],
       "description": "Where an emitted event goes: a role, a resident host, a named thing, or a place of the host's map."
-    },
-    "Text": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "en": {
-              "type": "string"
-            },
-            "zh": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "en"
-          ],
-          "additionalProperties": false
-        }
-      ]
     },
     "Mood": {
       "type": "string",
