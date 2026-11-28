@@ -404,3 +404,23 @@ Checks: `tools/test/motion.test.ts` holds that a monster that takes a foe up sho
 all while it sees nothing, and again when it sees once more after that; and that a wolf three cells off whose first
 act is its lunge has shown it by the time it winds up. Without the kit goal's change that second check fails. In
 the browser, a wolf on Dawnhill showed the "!" within 0.6 s of the player coming into its sight.
+
+## 21. Lost (2026-11-28)
+
+The "!" (§18) said when a monster took you up; nothing said when it let you go. A wolf that turned back at its leash
+or lost you behind a rock just walked off, and you could not tell a monster that gave up from one about to come
+round. Now it shows it: a "?" over its head as it gives up, as a guard's does in Metal Gear when you slip out of
+sight.
+
+- **When.** A monster that was chasing (`ai.state` `chase`) turns to anything else (back home, idle) while a foe of
+  its is still on the map and alive (behaviour.ts `notice`). One that fled and stops does not show it; one whose
+  foes are all down does not either.
+- **Once.** At most once in five seconds (`FORGET`, the "!"'s own wait), so one at the edge of its leash or its
+  sight, turning back and coming on again, does not flicker it.
+- **The signal** is a new fx, `{ t: 'lost', who }`, not a mood: a mood is a face every portrait would need. The
+  page draws it as the "!" is drawn (hud.ts `alert`, 0.9 s), with "?" in it.
+
+Checks: `tools/test/motion.test.ts` holds that a wolf that cannot see its foe any more shows "?" once, not again while
+it loses and finds the foe three times in the next 36 ticks, and again once it loses it after five quiet seconds;
+without the five-second wait the second part fails. In the browser, on Dawnhill, two monsters showed "!" as the
+player came near and each a "?" within 0.1 s of the other once the player was moved out of their sight.

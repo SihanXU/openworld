@@ -2334,6 +2334,8 @@ export type FxEvent =
   | { t: 'vfx'; fx: string; map: string; x: number; y: number; angle?: number; span?: number; /** Identity of a persistent effect, such as a thrown inventory instance. */ instance?: Id; /** Simulation-aligned duration supplied by trusted engine code. */ durationMs?: number; /** Fixed contact tick, allowing the renderer to account for snapshot delivery. */ untilTick?: number; /** who made it (a blow's swing, a bolt loosed): drawn wielding it wherever they are drawn now */ who?: Id }
   | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean; /** said to another (one person telling another): heard in passing, not a talk with the one at the keys */ to?: Id; /** called out (a companion leading the way): a bubble, never the talk's box */ aside?: boolean }
   | { t: 'emote'; who: Id; mood: Mood }
+  /** a monster that was after a foe has lost it (out of sight, or past its leash) while that foe is still about: a "?" over its head */
+  | { t: 'lost'; who: Id }
   | { t: 'fade'; dir: 'out' | 'in' }
   | { t: 'card'; text: Text; art?: string }
   | { t: 'strike'; map: string; x: number; y: number }
