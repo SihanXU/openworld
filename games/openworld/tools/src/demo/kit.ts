@@ -1,7 +1,7 @@
 // Shared tools of map composition for the demo's maps (the Ford, the meadow, the forest, and
 // the main quest's maps under quest/).
 
-import { APPEAR_EVERY, type AppearDef, type Text } from '@openworld/engine'
+import { APPEAR_EVERY, type AppearDef, type Entity, type Text } from '@openworld/engine'
 import { CREATURE_ROLES, NIGHT_WALKERS, ROLES, creatureStats } from '@openworld-game/content'
 import { MapBuilder, rng } from './builder.ts'
 
@@ -36,7 +36,26 @@ export function clump(m: MapBuilder, cx: number, cy: number, r: number, p = 0.7)
  * keeps how it plays; the curve gives its health, attack and defence at the level.
  */
 export function levelCreatures(m: MapBuilder): void {
+  comeBack(m)
   const statsOf = (type: string) => CREATURE_ROLES[type] && creatureStats(m.gearLevel, ROLES[CREATURE_ROLES[type]])
   for (const e of m.entities) if (CREATURE_ROLES[e.type]) e.props = { ...e.props, ...statsOf(e.type) }
   for (const type of [...Object.keys(NIGHT_WALKERS), ...m.appear.flatMap((a) => Object.keys(a.types))]) if (CREATURE_ROLES[type]) m.levelled[type] = statsOf(type)
+}
+
+export const COME_BACK_EVERY = 3600
+
+export function comeBack(m: MapBuilder): void {
+  const kinds = new Map<string, { n: number; on: Set<string>; ai: Entity['ai'] }>()
+  for (const e of m.entities) {
+    const role = CREATURE_ROLES[e.type]
+    if (!role || role === 'elite' || e.place.on !== 'tile' || m.appear.some((a) => a.types[e.type])) continue
+    const k = kinds.get(e.type) ?? { n: 0, on: new Set<string>(), ai: e.ai }
+    k.n++
+    k.on.add(m.get(e.place.x, e.place.y))
+    kinds.set(e.type, k)
+  }
+  m.appear = [...m.appear, ...[...kinds].map(([type, k]) => {
+    const { home: _, ...ai } = k.ai!
+    return appears(type, [...k.on], k.n, COME_BACK_EVERY, { ai })
+  })]
 }
