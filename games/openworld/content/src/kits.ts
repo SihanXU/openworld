@@ -200,7 +200,7 @@ export const ELITE_RULES: Rule[] = [
  * How each kind moves in a fight (the kits module's rout goal before its kit, tactics after): those that fight from afar keep back
  * (`keepAway` cells), the wolves run when badly hurt (`fleeBelow`) and go round as a pack (`pack`).
  */
-export const CREATURE_TACTICS: Record<string, { keepAway?: number; fleeBelow?: number; pack?: boolean }> = {
+export const CREATURE_TACTICS: Record<string, { keepAway?: number; fleeBelow?: number; pack?: boolean; harry?: number; rally?: number }> = {
   [`${C}/imp/fire_imp`]: { keepAway: 3 },
   [`${C}/wisp/storm_wisp`]: { keepAway: 3 },
   [`${C}/undead/ghost`]: { keepAway: 2 },
@@ -208,6 +208,10 @@ export const CREATURE_TACTICS: Record<string, { keepAway?: number; fleeBelow?: n
   [`${C}/beast/frost_wolf`]: { fleeBelow: 0.2, pack: true },
   [BOG_WISP]: { keepAway: 3 },
   [RESTLESS]: { keepAway: 3 },
+  [`${C}/beast/bat`]: { harry: 2 },
+  [`${C}/spider`]: { harry: 2 },
+  [`${C}/undead/zombie`]: { rally: 8 },
+  [`${C}/undead/skeleton`]: { rally: 8 },
 }
 
 // ------------------------------------------------------------------ what the kits leave, and the new kinds (docs/creatures.md §12)

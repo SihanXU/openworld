@@ -793,7 +793,7 @@ export function buildOntology(): Ontology {
   for (const kind of Object.keys(CREATURE_ROLES)) types[kind] = { ...types[kind], tags: [...(types[kind].tags ?? []), 'elemental-affinity'], props: { ...types[kind].props, ...affinityOf(types, kind) } }
   // how each moves in a fight: keeping back, fleeing hurt, a pack's flank (kits.ts CREATURE_TACTICS)
   for (const [kind, t] of Object.entries(CREATURE_TACTICS))
-    types[kind] = { ...types[kind], ...(t.pack && { tags: [...(types[kind].tags ?? []), 'pack'] }), props: { ...types[kind].props, ...(t.keepAway && { keepAway: t.keepAway }), ...(t.fleeBelow && { fleeBelow: t.fleeBelow }) } }
+    types[kind] = { ...types[kind], ...(t.pack && { tags: [...(types[kind].tags ?? []), 'pack'] }), props: { ...types[kind].props, ...(t.keepAway && { keepAway: t.keepAway }), ...(t.fleeBelow && { fleeBelow: t.fleeBelow }), ...(t.harry && { harry: t.harry }), ...(t.rally && { rally: t.rally }) } }
   return {
     // the systems this game takes from the engine's modules (module.ts), installed in this order
     modules: MODULES,
