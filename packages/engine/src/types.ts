@@ -404,6 +404,18 @@ export interface AppearDef {
   /** A creature's behaviour (its home is where it appears), and statuses it appears with. */
   ai?: Omit<AiData, 'home'>
   statuses?: string[]
+  /**
+   * Now and then one comes rare (Diablo's champions, Ark's alphas): by `chance`, named `name` (`{name}` the kind's), its
+   * numbers `mul` times its kind's (the map's levelled ones where it has them), with `statuses` besides.
+   */
+  rare?: RareDef
+}
+
+export interface RareDef {
+  chance: number
+  name?: Text
+  mul?: Record<string, number>
+  statuses?: string[]
 }
 
 export interface ThresholdDef {

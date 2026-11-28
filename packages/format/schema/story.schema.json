@@ -3518,6 +3518,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "rare": {
+          "$ref": "#/definitions/RareDef",
+          "description": "Now and then one comes rare (Diablo's champions, Ark's alphas): by `chance`, named `name` (`{name}` the kind's), its numbers `mul` times its kind's (the map's levelled ones where it has them), with `statuses` besides."
         }
       },
       "required": [
@@ -3549,6 +3553,33 @@
         "map",
         "x",
         "y"
+      ],
+      "additionalProperties": false
+    },
+    "RareDef": {
+      "type": "object",
+      "properties": {
+        "chance": {
+          "type": "number"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "mul": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "chance"
       ],
       "additionalProperties": false
     },
