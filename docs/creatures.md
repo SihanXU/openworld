@@ -404,3 +404,25 @@ Checks: `tools/test/motion.test.ts` holds that a monster that takes a foe up sho
 all while it sees nothing, and again when it sees once more after that; and that a wolf three cells off whose first
 act is its lunge has shown it by the time it winds up. Without the kit goal's change that second check fails. In
 the browser, a wolf on Dawnhill showed the "!" within 0.6 s of the player coming into its sight.
+
+## 20. They come back (2026-11-28)
+
+Twelve of the twenty-three kinds with a trophy were only ever placed, one to six of them in the whole world, and
+nothing brought them back: a fire slime's gloves at 4% and a frost wolf's hood at 10% were out of reach for good
+once the few were down, the pity count never got near fifty. Now a minor monster placed on a map comes back to it,
+as the creatures of an area do in Zelda, Monster Hunter's small monsters and an MMO's camps.
+
+- **What.** On every map, each kind with a role (levels.ts `CREATURE_ROLES`) that is not an elite, placed on a tile
+  there, and not already named by one of the map's appearances (demo/kit.ts `comeBack`). The bosses stay one of a
+  kind, and a map's own wolves or zombies that already come back keep their way of it.
+- **How.** One appearance per kind (engine appear.ts): up to as many as were placed, on the grounds they stood on,
+  with the placed one's behaviour, temper, sight and leash, at home where it comes. It comes on the map in hand only
+  (dormant maps are frozen), every 3600 ticks, six game hours: a camp cleared stays clear for the evening, and is
+  back the next day.
+- **Levels.** On the late maps `levelCreatures` adds them first, so one that comes back has the numbers of one
+  placed there (map-levels.test).
+
+Checks: `tools/test/come-back.test.ts` holds that every minor kind placed on a map comes back to it, up to as many
+as were placed, and that the frost wolves of Cinder Pass, all put down, come back on its snow with the placed ones'
+ways. Both fail without the change. A trace of the real tick loop on the pass brought a wolf back 2200 ticks after
+the two were put down (the next six-hour mark) and the second 3600 ticks after that; they then fought the player.
