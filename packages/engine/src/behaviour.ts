@@ -17,7 +17,9 @@
 // - idle: a step now and then.
 // Every goal acts with the acts and moves the player has; one that cannot go on reports `stuck`.
 // A monster that takes a foe up (to fight or to flee) after five seconds without one shows it noticed: the startled
-// person's emote, "!" over its head (npc.ts). Kept for the map in hand only, as the people's runtime is.
+// person's emote, "!" over its head (npc.ts); one that gives up on a foe still about (out of its sight, or past its
+// leash) shows it lost it, "?" (the `lost` fx), once in five seconds. Kept for the map in hand only, as the people's
+// runtime is.
 // Behaviour is the game's own logic, not the AI interface (design.md §5.4): its acts' outcomes are.
 
 import { fight, home, idle, sceneOf, type Scene } from './creatures.ts'
@@ -52,6 +54,8 @@ const FORGET = 50
 
 export class Behaviour {
   private engaged = new Map<Id, number>()
+  private hunting = new Set<Id>()
+  private lost = new Map<Id, number>()
   private map?: string
 
   constructor(private eng: Engine) {}
@@ -73,14 +77,21 @@ export class Behaviour {
       const e = w.state.entities[id]
       if (typeof e.props?.companion === 'string' && !(e.place.on === 'tile' && e.place.map === active)) movers.push(e)
     }
-    if (active !== this.map) this.engaged.clear(), (this.map = active)
-    for (const e of movers) this.turn(e, sc), this.notice(e)
+    if (active !== this.map) this.engaged.clear(), this.hunting.clear(), this.lost.clear(), (this.map = active)
+    for (const e of movers) this.turn(e, sc), this.notice(e, sc)
   }
 
-  private notice(e: Entity): void {
+  private notice(e: Entity, sc: Scene): void {
     const ai = e.ai
-    if (!ai || e.npc || e.boss || e.props?.companion !== undefined || (ai.state !== 'chase' && ai.state !== 'flee')) return
-    const w = this.eng.world, now = w.state.tick, last = this.engaged.get(e.id)
+    if (!ai || e.npc || e.boss || e.props?.companion !== undefined) return
+    const w = this.eng.world, now = w.state.tick
+    if (ai.state !== 'chase' && ai.state !== 'flee') {
+      if (!this.hunting.delete(e.id) || now - (this.lost.get(e.id) ?? -Infinity) <= FORGET) return
+      if (sc.actors.some((o) => o.place.on === 'tile' && w.num(o, 'hp', 1) > 0 && this.eng.hostileTo(e, o))) w.fx.push({ t: 'lost', who: e.id }), this.lost.set(e.id, now)
+      return
+    }
+    if (ai.state === 'chase') this.hunting.add(e.id)
+    const last = this.engaged.get(e.id)
     if (last === undefined || now - last > FORGET) {
       w.fx.push({ t: 'emote', who: e.id, mood: 'surprised' })
       for (const [id, t] of this.engaged) if (now - t > FORGET) this.engaged.delete(id)

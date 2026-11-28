@@ -6,7 +6,7 @@ import { buildFord } from '../src/demo/world.ts'
 // What the page needs to draw a minor monster's blows (runtime scene.ts: struck back from the striker, white for a moment,
 // a lunge for a blow dealt bare, a felling's burst): a landed blow names who dealt it and whether it felled, and the felled
 // one is gone in the same frame; a monster's own blow is a swing that names it; one that takes a foe up says so once ("!",
-// hud.ts), and again only after a while without one.
+// hud.ts), and again only after a while without one; one that loses a foe still about says that once too ("?").
 
 const onto = buildOntology()
 const WOLF = 'actor/creature/beast/wolf'
@@ -73,6 +73,38 @@ describe('what a minor monster is drawn by', () => {
     expect(foe.ai!.state).not.toBe('chase')
     eng.author(() => (foe.ai!.sight = sight))
     expect(notices(40)).toBe(1)
+  })
+
+  it('a monster that loses its foe shows it once, and not again while it loses it over and over', () => {
+    const { eng, w, foe } = setup(200, true)
+    const lost = (ticks: number) => {
+      let n = 0
+      for (let i = 0; i < ticks; i++) {
+        eng.tick()
+        n += w.fx.filter((f) => f.t === 'lost' && f.who === foe.id).length
+        w.fx.length = 0
+      }
+      return n
+    }
+    const sight = foe.ai!.sight
+    expect(lost(40)).toBe(0)
+    eng.author(() => (foe.ai!.sight = 0))
+    expect(lost(10)).toBe(1)
+    let flicker = 0, chased = 0
+    for (let i = 0; i < 3; i++) {
+      eng.author(() => (foe.ai!.sight = sight))
+      flicker += lost(6)
+      chased += +(foe.ai!.state === 'chase')
+      eng.author(() => (foe.ai!.sight = 0))
+      flicker += lost(6)
+    }
+    expect(chased).toBeGreaterThan(0)
+    expect(flicker).toBe(0)
+    expect(lost(80)).toBe(0)
+    eng.author(() => (foe.ai!.sight = sight))
+    lost(10)
+    eng.author(() => (foe.ai!.sight = 0))
+    expect(lost(10)).toBe(1)
   })
 
   it('one that opens with a skill has shown it by the time it winds up', () => {
