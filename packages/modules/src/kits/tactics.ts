@@ -3,7 +3,9 @@
 // - `keepAway` (cells): one that fights from afar steps back from a foe come closer than that, to where its skills reach;
 // - `fleeBelow` (a share of its health): hurt past it, it runs from its foe;
 // - the tag `pack`: one of a pack goes round to the foe's far side from a packmate already beside it (a flank), even
-//   past the foe's other sides.
+//   past the foe's other sides;
+// - `harry` (cells): its blow struck, it falls back that far until it may strike again (hit and run);
+// - `rally` (cells): seeing no foe itself, it comes on toward the foe of one of its kind that near already in a fight.
 // Taking nothing up, it leaves the fight to the kit and threat goals as before.
 
 import { fireSafety, homeNow, type Dir, type Engine, type Entity, type Pos, type Scene } from '@openworld/engine'
@@ -68,13 +70,21 @@ export function tacticsGoal(eng: Engine, e: Entity, sc: Scene, mode: 'rout' | 'p
   const keepAway = mode === 'place' ? w.num(e, 'keepAway', 0) : 0
   const fleeBelow = mode === 'rout' ? w.num(e, 'fleeBelow', 0) : 0
   const pack = mode === 'place' && w.hasTag(e, 'pack')
-  if (!keepAway && !fleeBelow && !pack) return false
-  const seen = foeOf(eng, e, active, e.ai.sight)
-  if (!seen) return false
+  const harry = mode === 'place' ? w.num(e, 'harry', 0) : 0
+  const rally = mode === 'place' ? w.num(e, 'rally', 0) : 0
+  if (!keepAway && !fleeBelow && !pack && !harry && !rally) return false
   const pos = w.posOf(e)!
-  const d = manhattan(pos, seen.at)
   const pace = () => eng.setCooldown(e.id, eng.combat.delay(e, w.num(e, 'speed', 6), 'move'))
   const may = mayStand(eng, e, sc)
+  const seen = foeOf(eng, e, active, e.ai.sight)
+  if (!seen) return rally > 0 && rallyTo(eng, e, sc, pos, rally, may) && (pace(), true)
+  const d = manhattan(pos, seen.at)
+  if (harry && d <= harry && !eng.ready('atk:' + e.id)) {
+    e.ai.state = 'chase'
+    if (d < harry) stepBy(eng, e, (x, y) => (may(x, y) ? Math.min(harry, manhattan(seen.at, { x, y })) : -1))
+    pace()
+    return true
+  }
   // hurt past its line: it runs, as far from its foe as each step takes it (within its leash)
   if (fleeBelow && w.num(e, 'hp') <= w.num(e, 'maxHp', 1) * fleeBelow) {
     if (stepBy(eng, e, (x, y) => (may(x, y) ? manhattan(seen.at, { x, y }) : -1))) {
@@ -115,6 +125,21 @@ export function tacticsGoal(eng: Engine, e: Entity, sc: Scene, mode: 'rout' | 'p
       pace()
       return true
     }
+  }
+  return false
+}
+
+function rallyTo(eng: Engine, e: Entity, sc: Scene, pos: Pos, reach: number, may: (x: number, y: number) => boolean): boolean {
+  const w = eng.world
+  const mates = sc.actors
+    .filter((o) => o !== e && o.ai?.state === 'chase' && w.num(o, 'rally', 0) > 0 && w.num(o, 'hp') > 0 && manhattan(pos, w.posOf(o)!) <= reach)
+    .sort((a, b) => manhattan(pos, w.posOf(a)!) - manhattan(pos, w.posOf(b)!))
+  for (const mate of mates) {
+    const theirs = foeOf(eng, mate, sc.active, mate.ai!.sight)
+    if (!theirs || !eng.hostileTo(e, theirs.foe)) continue
+    e.ai!.state = 'chase'
+    stepBy(eng, e, (x, y) => (may(x, y) ? -manhattan(theirs.at, { x, y }) : -Infinity))
+    return true
   }
   return false
 }

@@ -404,3 +404,20 @@ Checks: `tools/test/motion.test.ts` holds that a monster that takes a foe up sho
 all while it sees nothing, and again when it sees once more after that; and that a wolf three cells off whose first
 act is its lunge has shown it by the time it winds up. Without the kit goal's change that second check fails. In
 the browser, a wolf on Dawnhill showed the "!" within 0.6 s of the player coming into its sight.
+
+## 19. Hit and run, and the dead together (2026-11-28)
+
+Seven kinds moved in a fight beyond walking up and striking (§11); the rest came straight on and stood there. Two
+more ways, each a kind's data in `CREATURE_TACTICS`, read by the tactics goal:
+
+- **Hit and run** (`harry`, cells): its blow struck, it falls back that far and hovers there until it may strike
+  again, then comes on. The bat and the cave spider, at 2. Zelda's keese and Stardew's bats dart in and out the same
+  way; a spider that bites and backs off to spit its web is Hollow Knight's and Minecraft's. The answer is to strike
+  as it comes in, or to follow it.
+- **The dead together** (`rally`, cells): one that sees no foe itself comes toward the foe of one of the rallying
+  kinds within that reach already in a fight (its `ai.state`, the foe that one sees). The zombie and the skeleton, at 8.
+  It takes the foe up as any does, so it shows the "!" of §18. Minecraft's zombies call others to the one who struck
+  them; the hollows of a Souls game wake together. One alone, with none of its kind fighting, stays where it is.
+
+It reads the others and moves only itself. Checks: kits.test.ts (a bat that has bitten falls back until it may bite
+again, then comes on; a zombie out of sight comes toward the foe of a skeleton in a fight; one alone stays).

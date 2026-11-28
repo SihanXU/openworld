@@ -296,7 +296,37 @@ describe('creature kits', () => {
     expect(run(200, () => beside(a) && beside(b) && side(b) === -side(a))).toBe(true)
   })
 
-  it('a spider\'s web stays on the ground: who wades into a cobweb is webbed; a blow tears it; it sags away in its while', () => {
+  it('tactics: a bat that has bitten falls back until it may bite again, then comes on', () => {
+    const { eng, w, p, spawn, run } = arena()
+    const bat = spawn('actor/creature/beast/bat', 1)
+    const dist = () => Math.abs(w.posOf(bat)!.x - w.posOf(p)!.x) + Math.abs(w.posOf(bat)!.y - w.posOf(p)!.y)
+    const hp0 = w.num(p, 'hp')
+    expect(run(60, () => w.num(p, 'hp') < hp0)).toBe(true)
+    expect(run(20, () => dist() >= 2)).toBe(true)
+    expect(eng.ready('atk:' + bat.id)).toBe(false)
+    expect(run(60, () => dist() === 1 && eng.ready('atk:' + bat.id))).toBe(true)
+  })
+
+  it('tactics: the dead come together: a zombie out of sight comes toward the foe of one already in a fight', () => {
+    const { eng, w, p, map, row, spawn, run } = arena()
+    spawn('actor/creature/undead/skeleton', 2)
+    const at = { map, x: row.x + 7, y: row.y }
+    const far = eng.author(() => w.create('actor/creature/undead/zombie', { on: 'tile', ...at }, { ai: { behaviour: 'melee', temper: 'aggressive', sight: 3, leash: 12, home: at } }))
+    const dist = () => Math.abs(w.posOf(far)!.x - w.posOf(p)!.x) + Math.abs(w.posOf(far)!.y - w.posOf(p)!.y)
+    expect(run(80, () => dist() <= 3)).toBe(true)
+  })
+
+  it('tactics: one of the dead alone, with none of its kind in a fight, stays where it is out of sight', () => {
+    const { eng, w, p, map, row, run } = arena()
+    const at = { map, x: row.x + 7, y: row.y }
+    const far = eng.author(() => w.create('actor/creature/undead/zombie', { on: 'tile', ...at }, { ai: { behaviour: 'melee', temper: 'aggressive', sight: 3, leash: 12, home: at } }))
+    let chased = false
+    run(80, () => ((chased ||= far.ai?.state === 'chase'), false))
+    expect(chased).toBe(false)
+    expect(Math.abs(w.posOf(far)!.x - w.posOf(p)!.x)).toBeGreaterThan(3)
+  })
+
+  it('a spider\'s web stays on the ground:who wades into a cobweb is webbed; a blow tears it; it sags away in its while', () => {
     const { eng, w, p, map, row, spawn, run } = arena()
     spawn('actor/creature/spider', 3)
     const webs = () => w.entitiesOnMap(map).filter((e) => e.type === 'fixture/nature/web')
