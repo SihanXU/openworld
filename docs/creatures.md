@@ -404,3 +404,21 @@ Checks: `tools/test/motion.test.ts` holds that a monster that takes a foe up sho
 all while it sees nothing, and again when it sees once more after that; and that a wolf three cells off whose first
 act is its lunge has shown it by the time it winds up. Without the kit goal's change that second check fails. In
 the browser, a wolf on Dawnhill showed the "!" within 0.6 s of the player coming into its sight.
+
+## 22. Honed (2026-11-28)
+
+A kind met on a later map is of the map's level (§8), and its blows grow with it, since a skill's power is its
+attack's. Its kit did not: a level-8 wolf on the Lashmarks wound up, waited and took its Lunge up exactly as a level-2
+wolf on Dawnhill. Monster Hunter's high-rank monsters keep their tells and press harder; so do these now.
+
+- **How much.** Each level over its kind's own (the type's `level`, levels.ts) cuts a skill's cooldown by a
+  twenty-fifth, to half at most, and divides its chance by the same, to a certain take-up at most (kits module
+  `honed`). A Lashmarks wolf (8 over 2) waits 0.76 as long; a skeleton of the late roads (12 over 3) 0.64; one fifteen
+  or more over, half.
+- **What stays.** The wind-up, the marks and the recovery: what the player reads and answers is the same at every
+  level, only more often. Bosses are never over their own level and are untouched.
+
+Checks: `tools/test/kits.test.ts` holds that a wolf at its kind's level is not honed, that one ten over has the same
+wind-up and a Lunge cooldown cut to 0.6, and that one thirty over is at the half. A trace on the Lashmarks, the player
+stepping three cells off whenever bitten, counted 60 Lunges in five minutes from a placed wolf (level 8) against 46
+from the same wolf set to level 2. In the browser the Lashmarks wolves wound up and landed their Lunge as before.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, snapshot, type Entity } from '@openworld/engine'
-import { kitPattern, kitsOf } from '@openworld/modules'
+import { honed, kitPattern, kitsOf } from '@openworld/modules'
 import { BASE_RULES, KITS, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
@@ -116,6 +116,23 @@ describe('creature kits', () => {
     expect(run(60, () => !!p.statuses?.bleeding)).toBe(true)
     expect(w.posOf(wolf)!.x).toBeLessThan(from)
     void eng
+  })
+
+  it('a wolf met above its kind\'s level is honed: the same wind-up, its lunge back sooner', () => {
+    const wait = (over: number) => {
+      const { eng, w, spawn, run } = arena()
+      const base = Number(w.onto.resolve('actor/creature/beast/wolf').props.level)
+      const wolf = spawn('actor/creature/beast/wolf', 3, { level: base + over })
+      expect(run(60, () => kitsOf(eng).pending.get(wolf.id)?.skill.id === 'lunge')).toBe(true)
+      const started = w.state.tick, windup = kitsOf(eng).pending.get(wolf.id)!.skill.windup
+      return { honed: honed(eng, wolf), windup, wait: eng.cooldown(`kit:${wolf.id}:lunge`) - started }
+    }
+    const same = wait(0), over = wait(10), far = wait(30)
+    expect(same.honed).toBe(1)
+    expect(over.windup).toBe(same.windup)
+    expect(over.wait).toBeLessThan(same.wait)
+    expect(over.wait - over.windup).toBe(Math.round((same.wait - same.windup) * 0.6))
+    expect(far.honed).toBe(0.5)
   })
 
   it('a boar that charges into nothing but a wall is stunned itself', () => {

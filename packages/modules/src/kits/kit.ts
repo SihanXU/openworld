@@ -2,13 +2,20 @@
 // the foe's distance, a row or a column, its own health, a chance, a cooldown (Elin's model). It looks once a second;
 // taking nothing up, it fights on as before (the threat goal). One that takes a skill up is in a fight, as one that
 // chases is (its `ai.state`, behaviour.ts). A boss's director takes its answering skills up by the
-// same conditions (`ready`).
+// same conditions (`ready`). One met above its kind's own level (a wolf of the late roads) is honed, as Monster
+// Hunter's high-rank monsters are: its wind-ups the same, so its tells read as they did, but its skills come back
+// sooner and it takes them up more readily, a twenty-fifth for each level over, to half the wait at most (`honed`).
 
 import { provokedBy, type Engine, type Entity, type KitSkill, type Pos } from '@openworld/engine'
 import { beginCast, kitsOf, stepCast } from './cast.ts'
 import { originOf } from './pattern.ts'
 
 const dist = (a: Pos, b: Pos) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))
+
+export const honed = (eng: Engine, e: Entity) => {
+  const w = eng.world
+  return Math.max(0.5, 1 - 0.04 * Math.max(0, w.num(e, 'level', 0) - Number(w.onto.resolve(e.type).props.level ?? 0)))
+}
 
 /** The key of a skill's cooldown on a caster. */
 export const skillKey = (e: Entity, skill: KitSkill) => `kit:${e.id}:${skill.id}`
@@ -27,7 +34,7 @@ export function ready(eng: Engine, e: Entity, skill: KitSkill, pos: Pos, at: Pos
   if (skill.below !== undefined && w.num(e, 'hp') > w.num(e, 'maxHp', 1) * skill.below) return false
   if (skill.spent !== undefined && e.props?.[skill.spent] !== undefined) return false
   if (!eng.ready(skillKey(e, skill))) return false
-  return w.rand() < (skill.chance ?? 1)
+  return w.rand() < Math.min(1, (skill.chance ?? 1) / honed(eng, e))
 }
 
 /** The nearest foe a caster sees on its map, and where it stands. */
@@ -85,7 +92,7 @@ export function kitGoal(eng: Engine, e: Entity, active: string): boolean {
     ;(seen.foe.combat ??= {}).fightTick = w.state.tick
     const p = beginCast(eng, e, skill, seen.at, { target: seen.foe.id })
     if (!p) return false
-    eng.setCooldown(skillKey(e, skill), skill.windup + (skill.cooldown ?? 0))
+    eng.setCooldown(skillKey(e, skill), skill.windup + Math.round((skill.cooldown ?? 0) * honed(eng, e)))
     return true
   }
   return false
